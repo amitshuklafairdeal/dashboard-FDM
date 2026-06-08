@@ -129,7 +129,6 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
     <span class="tag-Hunter" style="padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">Hunter ≤1</span>
   </div>
   <div class="kpi-row k6" id="gsb-kpis"></div>
-  <div class="kpi-row k6" id="gsb-kpis2" style="margin-top:0"></div>
   <div class="g2">
     <div class="card"><div class="card-title"><span class="dot" style="background:var(--pri)"></span>Bucket Distribution (Current Month)</div><canvas id="c-gsb-pie" style="max-height:160px"></canvas></div>
     <div class="card"><div class="card-title"><span class="dot" style="background:var(--ok)"></span>GMV by Bucket</div><canvas id="c-gsb-gmv" style="max-height:160px"></canvas></div>
@@ -209,6 +208,63 @@ var BEAT = P.beat        || [];  // Dashboard_Beat rows
 var TGT  = P.target      || [];  // Dashboard_Target rows
 
 var CH = {};  // Chart.js instances (lazy, never recreated)
+
+// ── Inline data-label plugin — bars, doughnuts, pie ──────────────────────────
+// Enable per-chart: options.plugins.inlineLabels = { formatter, color }
+// Bars: label floats above each bar
+// Doughnut/Pie: % floats inside each sector (hidden if slice < 5%)
+Chart.register({
+  id:'inlineLabels',
+  afterDatasetsDraw:function(chart){
+    var opts=chart.config.options&&chart.config.options.plugins&&chart.config.options.plugins.inlineLabels;
+    if(!opts)return;
+    var ctx=chart.ctx;
+    var type=chart.config.type;
+
+    if(type==='doughnut'||type==='pie'){
+      var ds=chart.data.datasets[0];
+      if(!ds)return;
+      var total=ds.data.reduce(function(s,v){return s+(Number(v)||0);},0)||1;
+      var meta=chart.getDatasetMeta(0);
+      meta.data.forEach(function(arc,idx){
+        var v=Number(ds.data[idx]||0);
+        var pct=Math.round(v/total*100);
+        if(pct<5)return;  // skip tiny slices — no room for label
+        var lbl=opts.formatter?opts.formatter(v,idx,pct):(pct+'%');
+        var angle=(arc.startAngle+arc.endAngle)/2;
+        var r=(arc.innerRadius+arc.outerRadius)/2;
+        var x=arc.x+Math.cos(angle)*r;
+        var y=arc.y+Math.sin(angle)*r;
+        ctx.save();
+        ctx.font='bold 10px Segoe UI,sans-serif';
+        ctx.fillStyle='#fff';
+        ctx.textAlign='center';
+        ctx.textBaseline='middle';
+        ctx.fillText(lbl,x,y);
+        ctx.restore();
+      });
+      return;
+    }
+
+    // Bar / column charts
+    chart.data.datasets.forEach(function(ds,i){
+      var meta=chart.getDatasetMeta(i);
+      if(meta.hidden)return;
+      meta.data.forEach(function(bar,idx){
+        var v=ds.data[idx];
+        if(!v&&v!==0)return;
+        var lbl=opts.formatter?opts.formatter(v,idx,ds):String(v);
+        ctx.save();
+        ctx.font='bold 10px Segoe UI,sans-serif';
+        ctx.fillStyle=opts.color||'#374151';
+        ctx.textAlign='center';
+        ctx.textBaseline='bottom';
+        ctx.fillText(lbl,bar.x,bar.y-2);
+        ctx.restore();
+      });
+    });
+  }
+});
 var BUCKETS = ["Gold","Silver","Bronze","Explorer","Hunter"];
 var BCOLORS = {Gold:"#f59e0b",Silver:"#6b7280",Bronze:"#b45309",Explorer:"#1a56db",Hunter:"#7e3af2"};
 var PALETTE = ["#1a56db","#0e9f6e","#f59e0b","#e02424","#7e3af2","#0694a2","#f97316","#14b8a6"];
@@ -334,8 +390,13 @@ function renderWh(){
 
   // ── 8-card scorecard with target vs achievement ──────────────────────────
   var retMx  = Number(scope.mtd_retention||scope.total_mx_retained||0);
-  var retLm  = Number(scope.total_mx_lm||0);
-  var retPct = Number(scope.total_retention_pct||0);
+  // retLm: prefer KPI field, fall back to RET overall prev_active_mx (most reliable source)
+  var _retOvWh = RET.filter(function(r){
+    var st=String(r.scope_type||"").toLowerCase();
+    return CUR_WH ? (st==="warehouse"&&(r.scope===CUR_WH||r.warehouse===CUR_WH)) : st==="overall";
+  })[0]||{};
+  var retLm  = Number(scope.total_mx_lm||0) || Number(_retOvWh.prev_active_mx||0);
+  var retPct = Number(scope.total_retention_pct||0) || Number(_retOvWh.retention_pct||0);
 
   function kpiTgt(label,actual,tgt,sub,cls,rawActual){
     // rawActual = numeric value for ach% calc (actual may be a formatted string like "₹12.3L")
@@ -363,10 +424,11 @@ function renderWh(){
       +'<div style="margin-top:3px">'+achLine+'</div></div>';
   }
 
-  // Resolve targets: prefer KPI row targets, fall back to Dashboard_Target sheet
+  // Resolve targets: prefer KPI row targets, fall back to Dashboard_Target sheet sum
+  // For "All Warehouses" view always sum TGT sheet (KPI overall row may have stale/0 target)
   var scopeWh = CUR_WH||"";
-  var tGmv  = Number(scope.target_gmv||0)        || tgtFromSheet(scopeWh,"target_gmv");
-  var tOrd  = Number(scope.target_orders||0)     || tgtFromSheet(scopeWh,"target_orders");
+  var tGmv  = tgtFromSheet(scopeWh,"target_gmv")  || Number(scope.target_gmv||0);
+  var tOrd  = tgtFromSheet(scopeWh,"target_orders")|| Number(scope.target_orders||0);
   var tNewOb= Number(scope.target_new_ob||0)     || tgtFromSheet(scopeWh,"target_new_ob");
   var tReOb = Number(scope.target_re_ob||0)      || tgtFromSheet(scopeWh,"target_re_ob");
   var tReact= Number(scope.target_reactivation||0)|| tgtFromSheet(scopeWh,"target_reactivation");
@@ -419,8 +481,8 @@ function renderWh(){
   var whGmv  = whRows.map(function(r){return Number(r.mtd_gmv||0);});
   var whMerch= whRows.map(function(r){return Number(r.mtd_merchants||0);});
 
-  makeCh("c-wh-gmv",{type:"bar",data:{labels:whs,datasets:[{label:"GMV",data:whGmv,backgroundColor:whs.map(function(_,i){return PALETTE[i%PALETTE.length];})}]},options:{plugins:{legend:{display:false}},scales:_scales(fmtL)}});
-  makeCh("c-wh-merch",{type:"bar",data:{labels:whs,datasets:[{label:"Merchants",data:whMerch,backgroundColor:whs.map(function(_,i){return PALETTE[i%PALETTE.length];})}]},options:{plugins:{legend:{display:false}},scales:_scales()}});
+  makeCh("c-wh-gmv",{type:"bar",data:{labels:whs,datasets:[{label:"GMV",data:whGmv,backgroundColor:whs.map(function(_,i){return PALETTE[i%PALETTE.length];})}]},options:{plugins:{legend:{display:false},inlineLabels:{formatter:fmtL,color:"#1e293b"}},scales:_scales(fmtL)}});
+  makeCh("c-wh-merch",{type:"bar",data:{labels:whs,datasets:[{label:"Merchants",data:whMerch,backgroundColor:whs.map(function(_,i){return PALETTE[i%PALETTE.length];})}]},options:{plugins:{legend:{display:false},inlineLabels:{formatter:fmt,color:"#1e293b"}},scales:_scales()}});
 
   // ── Warehouse KPI Summary table (transposed: warehouses as columns) ──────────
   // Helper: show actual then small target+ach% below
@@ -507,13 +569,18 @@ function renderWh(){
   });
   html+='<td class="num" '+tdTot+'>'+fmtL(Math.round(sumGmvForPd/day))+'</td></tr>';
 
-  // GMV Ach% row
+  // GMV Ach% row — compute directly from actual / target (pre-computed field often 0)
   html += '<tr><td><b>GMV Ach%</b></td>';
+  var _sumActGmv=0, _sumTgtGmv2=0;
   whRows.forEach(function(r){
-    var ach=Number(r.achievement_pct||0);
+    var actG = Number(r.mtd_gmv||0);
+    var tgtG = _whTgt(r,"target_gmv","target_gmv");
+    if(!tgtG) tgtG = tgtFromSheet(r.scope||r.warehouse||"","target_gmv");
+    var ach = tgtG>0 ? Math.round(actG/tgtG*100) : Number(r.achievement_pct||0);
+    _sumActGmv+=actG; _sumTgtGmv2+=tgtG;
     html+='<td class="num"><b style="color:'+achColor(ach)+'">'+fmtPct(ach)+'</b>'+bar(ach,"#0e9f6e")+'</td>';
   });
-  var totAch=Number(overall.achievement_pct||0);
+  var totAch = _sumTgtGmv2>0 ? Math.round(_sumActGmv/_sumTgtGmv2*100) : Number(overall.achievement_pct||0);
   html+='<td class="num" '+tdTot+'><b style="color:'+achColor(totAch)+'">'+fmtPct(totAch)+'</b></td></tr>';
 
   html+='</tbody></table>';
@@ -647,41 +714,40 @@ function renderGsb(){
   var curGsbGmv = ["Gold","Silver","Bronze"].reduce(function(s,b){return s+(gmvByB[b]||0);},0);
   var curGsbOrd = ["Gold","Silver","Bronze"].reduce(function(s,b){return s+(ordByB[b]||0);},0);
   var curGsbAov = curGsbOrd>0?Math.round(curGsbGmv/curGsbOrd):0;
+  // LM GSB GMV/Orders for comparison sub-line
+  var prevGsbGmv = ["Gold","Silver","Bronze"].reduce(function(s,b){return s+(pGmvByB[b]||0);},0);
+  var prevGsbOrd = ["Gold","Silver","Bronze"].reduce(function(s,b){return s+(pOrdByB[b]||0);},0);
+  var prevGsbAov = prevGsbOrd>0 ? Math.round(prevGsbGmv/prevGsbOrd) : 0;
   var curActive = ["Gold","Silver","Bronze","Explorer"].reduce(function(s,b){return s+(cntByB[b]||0);},0);
 
   // GSB retention metrics from RET (authoritative)
   var gsbRetained = Number(retOvRow.gsb_retained_mx||0);
   var gsbPending  = Number(retOvRow.gsb_pending_mx||0);
-  var totLmActive = Number(retOvRow.prev_active_mx||0);
-  var totRetained = Number(retOvRow.retained_mx||0);
-  var totPending  = Number(retOvRow.pending_retention_mx||0);
 
-  // ── 1. Scorecards: 2 rows ──────────────────────────────────────────────────
-  // Row 1 (k6): GSB-specific
+  // ── 1. Scorecards: 1 row (k6) — GSB LM vs CM comparison ────────────────────
+  var gsbRetPct  = gsbLmCount>0 ? Math.round(gsbRetained/gsbLmCount*100) : 0;
+  var gsbPendPct = gsbLmCount>0 ? Math.round(gsbPending/gsbLmCount*100) : 0;
+  var gmvDeltaGsb  = prevGsbGmv>0  ? Math.round((curGsbGmv-prevGsbGmv)/prevGsbGmv*100) : 0;
+  var ordDeltaGsb  = prevGsbOrd>0  ? Math.round((curGsbOrd-prevGsbOrd)/prevGsbOrd*100) : 0;
+  var aovDeltaGsb  = prevGsbAov>0  ? Math.round((curGsbAov-prevGsbAov)/prevGsbAov*100) : 0;
   document.getElementById("gsb-kpis").innerHTML=
-    kpiHtml("GSB Last Month",           fmt(gsbLmCount),  PREV_MON+" (Gold+Silver+Bronze)","o")+
-    kpiHtml("GSB Active (Retained CM)", fmt(gsbRetained), "LM GSB mx ordering this month","g")+
-    kpiHtml("GSB Pending Activation",   fmt(gsbPending),  "LM GSB not yet ordered CM","r")+
-    kpiHtml("GSB GMV (Current Month)",  fmtL(curGsbGmv),  "Gold+Silver+Bronze GMV","")+
-    kpiHtml("GSB Orders (Current Month)",fmt(curGsbOrd),  "","p")+
-    kpiHtml("GSB AOV (Current Month)",  fmtL(curGsbAov),  "GMV / Orders","t");
-
-  // Row 2 (k6): Overall retention summary + MTD totals
-  var totCmGmv = Number(kpiOv.mtd_gmv||0);
-  var totCmOrd = Number(kpiOv.mtd_orders||0);
-  var totCmAov = totCmOrd>0 ? Math.round(totCmGmv/totCmOrd) : 0;
-  document.getElementById("gsb-kpis2").innerHTML=
-    kpiHtml("Total Active Last Month",  fmt(totLmActive), "Full prev month active","o")+
-    kpiHtml("Retained This Month",      fmt(totRetained), "LM active → ordered CM","g")+
-    kpiHtml("Pending Retention",        fmt(totPending),  "LM active − retained CM","r")+
-    kpiHtml("Total GMV (MTD)",          fmtL(totCmGmv),   "All merchants current month","")+
-    kpiHtml("Total Orders (MTD)",       fmt(totCmOrd),    "Current month orders","p")+
-    kpiHtml("Total AOV (MTD)",          fmtL(totCmAov),   "GMV ÷ Orders","t");
+    kpiHtml("GSB Last Month ("+PREV_MON+")", fmt(gsbLmCount),
+      "Gold+Silver+Bronze active","o")+
+    kpiHtml("GSB Active CM",   fmt(gsbRetained),
+      gsbRetPct+"% of LM GSB · Pending: "+fmt(gsbPending)+" ("+gsbPendPct+"%)","g")+
+    kpiHtml("GSB GMV (MTD)",   fmtL(curGsbGmv),
+      "LM GSB GMV: "+fmtL(prevGsbGmv)+" &nbsp;"+delta(gmvDeltaGsb),"")+
+    kpiHtml("GSB Orders (MTD)",fmt(curGsbOrd),
+      "LM GSB Ord: "+fmt(prevGsbOrd)+" &nbsp;"+delta(ordDeltaGsb),"p")+
+    kpiHtml("GSB AOV (MTD)",   fmtL(curGsbAov),
+      "LM GSB AOV: "+fmtL(prevGsbAov)+" &nbsp;"+delta(aovDeltaGsb),"t")+
+    kpiHtml("GSB Retention %", gsbRetPct+"%",
+      fmt(gsbRetained)+" retained of "+fmt(gsbLmCount),gsbRetPct>=70?"g":gsbRetPct>=50?"o":"r");
 
   // ── 2. Charts ──────────────────────────────────────────────────────────────
-  makeCh("c-gsb-pie",{type:"doughnut",data:{labels:BUCKETS,datasets:[{data:BUCKETS.map(function(b){return cntByB[b]||0;}),backgroundColor:BUCKETS.map(function(b){return BCOLORS[b];}),borderWidth:1,borderColor:"#fff"}]},options:{plugins:{legend:{position:"right",labels:{font:{size:10},boxWidth:12}}}}});
+  makeCh("c-gsb-pie",{type:"doughnut",data:{labels:BUCKETS,datasets:[{data:BUCKETS.map(function(b){return cntByB[b]||0;}),backgroundColor:BUCKETS.map(function(b){return BCOLORS[b];}),borderWidth:1,borderColor:"#fff"}]},options:{plugins:{legend:{position:"right",labels:{font:{size:10},boxWidth:12}},inlineLabels:{}}}});
   // FIX: include Hunter in GMV chart
-  makeCh("c-gsb-gmv",{type:"bar",data:{labels:BUCKETS,datasets:[{label:"GMV",data:BUCKETS.map(function(b){return gmvByB[b]||0;}),backgroundColor:BUCKETS.map(function(b){return BCOLORS[b];})}]},options:{plugins:{legend:{display:false}},scales:_scales(fmtL)}});
+  makeCh("c-gsb-gmv",{type:"bar",data:{labels:BUCKETS,datasets:[{label:"GMV",data:BUCKETS.map(function(b){return gmvByB[b]||0;}),backgroundColor:BUCKETS.map(function(b){return BCOLORS[b];})}]},options:{plugins:{legend:{display:false},inlineLabels:{formatter:fmtL,color:"#1e293b"}},scales:_scales(fmtL)}});
   var byMB={};
   GSB.filter(function(r){return !wh||r.warehouse===wh;}).forEach(function(r){
     var m=String(r.order_month||"").substring(0,7);
@@ -858,18 +924,37 @@ function renderRet(){
   var overall = retRow("overall","All");
   var wh = CUR_WH;
 
+  // LMTD active merchants: sum lmtd_merchants from MTD WH rows (same day last month baseline)
+  var lmtdMxVal = MTD.filter(function(r){
+    return String(r.row_type||"").toLowerCase()==="warehouse" && (!wh||r.warehouse===wh||r.dimension_value===wh);
+  }).reduce(function(s,r){return s+Number(r.lmtd_merchants||0);},0);
+  var lmtdLabel = lmtdMxVal>0 ? " · LM till date: <b>"+fmt(lmtdMxVal)+"</b>" : "";
+
+  // Retention % for overall
+  var retPctOv = Number(overall.retention_pct||0);
+  var gsbRetPctOv = Number(overall.gsb_retention_pct||0);
+  var ngRetPctOv  = Number(overall.non_gsb_retention_pct||0);
+
   // ── Scorecard row 1: Overall retention ────────────────────────────────────
   document.getElementById("ret-kpis").innerHTML=
-    kpiHtml("Active Last Month",   fmt(overall.prev_active_mx||0),  "Full previous month","o")+
-    kpiHtml("Active Current Month",fmt(overall.cur_active_mx||0),   "Placed ≥1 order","g")+
-    kpiHtml("Retained",            fmt(overall.retained_mx||0),     fmtPct(overall.retention_pct||0)+" retained","g")+
-    kpiHtml("Pending Retention",   fmt(overall.pending_retention_mx||0),"LM active, not yet CM","r");
+    kpiHtml("Active Last Month",   fmt(overall.prev_active_mx||0),
+      "Full previous month"+lmtdLabel,"o")+
+    kpiHtml("Active Current Month",fmt(overall.cur_active_mx||0),
+      "Placed ≥1 order"+lmtdLabel,"g")+
+    kpiHtml("Retained",            fmt(overall.retained_mx||0),
+      fmtPct(retPctOv)+" retention rate"+lmtdLabel,"g")+
+    kpiHtml("Pending Retention",   fmt(overall.pending_retention_mx||0),
+      "LM active, not yet ordered CM"+lmtdLabel,"r");
   // ── Scorecard row 2: GSB retention ────────────────────────────────────────
   document.getElementById("ret-kpis2").innerHTML=
-    kpiHtml("GSB Last Month",      fmt(overall.gsb_lm_mx||0),       "Gold+Silver+Bronze","p")+
-    kpiHtml("GSB Retained",        fmt(overall.gsb_retained_mx||0), fmtPct(overall.gsb_retention_pct||0)+" ret%","t")+
-    kpiHtml("GSB Pending",         fmt(overall.gsb_pending_mx||0),  "GSB LM not yet active CM","r")+
-    kpiHtml("Non-GSB Retained",    fmt(overall.non_gsb_retained_mx||0),fmtPct(overall.non_gsb_retention_pct||0)+" ret%","");
+    kpiHtml("GSB Last Month",      fmt(overall.gsb_lm_mx||0),
+      "Gold+Silver+Bronze"+lmtdLabel,"p")+
+    kpiHtml("GSB Retained",        fmt(overall.gsb_retained_mx||0),
+      fmtPct(gsbRetPctOv)+" GSB ret%"+lmtdLabel,"t")+
+    kpiHtml("GSB Pending",         fmt(overall.gsb_pending_mx||0),
+      "GSB LM not yet active CM"+lmtdLabel,"r")+
+    kpiHtml("Non-GSB Retained",    fmt(overall.non_gsb_retained_mx||0),
+      fmtPct(ngRetPctOv)+" non-GSB ret%"+lmtdLabel,"");
 
   // ── Charts — compute flow stats from MOV ──────────────────────────────────
   var movFilt = MOV.filter(function(r){return !wh||r.warehouse===wh;});
@@ -880,15 +965,40 @@ function renderRet(){
     var ret  = movFilt.filter(function(r){return r.prev_bucket===b&&r.cur_bucket!=="Hunter";}).length;
     retByB[b] = prev>0?Math.round(ret/prev*100):0;
   });
-  makeCh("c-ret-bucket",{type:"bar",data:{labels:GSB_BUCKETS,datasets:[{label:"Retention %",data:GSB_BUCKETS.map(function(b){return retByB[b];}),backgroundColor:GSB_BUCKETS.map(function(b){return BCOLORS[b];})}]},options:{plugins:{legend:{display:false}},scales:{x:{ticks:_XTICK},y:{min:0,max:100,ticks:Object.assign({},_YTICK,{callback:function(v){return v+"%";}})}}}});
+  makeCh("c-ret-bucket",{type:"bar",data:{labels:GSB_BUCKETS,datasets:[{
+    label:"Retention %",
+    data:GSB_BUCKETS.map(function(b){return retByB[b];}),
+    backgroundColor:GSB_BUCKETS.map(function(b){return BCOLORS[b];})}]},
+    options:{
+      plugins:{
+        legend:{display:false},
+        inlineLabels:{formatter:function(v){return v+"%";},color:"#1e293b"}
+      },
+      scales:{x:{ticks:_XTICK},y:{min:0,max:100,ticks:Object.assign({},_YTICK,{callback:function(v){return v+"%";}})}}}});
 
-  // Flow chart from MOV bucket_change
+  // Flow chart from MOV bucket_change — with counts + % in legend labels
   var retained  = movFilt.filter(function(r){return r.prev_bucket!=="Hunter"&&r.cur_bucket!=="Hunter";}).length;
   var churned   = movFilt.filter(function(r){return r.prev_bucket!=="Hunter"&&r.cur_bucket==="Hunter";}).length;
   var newActive = movFilt.filter(function(r){return r.prev_bucket==="Hunter"&&r.cur_bucket!=="Hunter";}).length;
   var upgraded  = movFilt.filter(function(r){return r.bucket_change==="upgraded";}).length;
   var downgraded= movFilt.filter(function(r){return r.bucket_change==="downgraded";}).length;
-  makeCh("c-ret-flow",{type:"doughnut",data:{labels:["Retained","Upgraded","Downgraded","Churned","New Active"],datasets:[{data:[retained,upgraded,downgraded,churned,newActive],backgroundColor:["#0e9f6e","#f59e0b","#f97316","#e02424","#1a56db"],borderWidth:1,borderColor:"#fff"}]},options:{plugins:{legend:{position:"right",labels:{font:{size:10},boxWidth:12}}}}});
+  // Use total unique merchants in MOV as denominator (retained/churned/newActive are mutually exclusive;
+  // upgraded/downgraded are subsets of retained — avoid double-counting)
+  var _flowTotal = movFilt.length || 1;
+  function _fpct(v){return " ("+fmt(v)+" · "+Math.round(v/_flowTotal*100)+"%)";}
+  makeCh("c-ret-flow",{type:"doughnut",
+    data:{
+      labels:[
+        "Retained"+_fpct(retained),
+        "Upgraded"+_fpct(upgraded),
+        "Downgraded"+_fpct(downgraded),
+        "Churned"+_fpct(churned),
+        "New Active"+_fpct(newActive)],
+      datasets:[{
+        data:[retained,upgraded,downgraded,churned,newActive],
+        backgroundColor:["#0e9f6e","#f59e0b","#f97316","#e02424","#1a56db"],
+        borderWidth:1,borderColor:"#fff"}]},
+    options:{plugins:{legend:{position:"right",labels:{font:{size:10},boxWidth:12}}}}});
 
   // ── WH retention table (new field names) ──────────────────────────────────
   var whRet = RET.filter(function(r){
@@ -983,7 +1093,7 @@ function renderRet(){
       +'<td>'+chg+'</td></tr>';
   });
   html+='</tbody></table>';
-  var el=document.getElementById("ret-mov-tbl");if(el)el.innerHTML=html;
+  var el=document.getElementById("ret-merch-tbl");if(el)el.innerHTML=html;
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -1045,6 +1155,11 @@ function renderMtd(){
     scope.merchants_delta_pct = ovMxDelta;
   }
 
+  // Compute MTD AOV vs LMTD AOV
+  var mtdAovVal  = ovMtdOrd>0  ? Math.round(ovMtdGmv/ovMtdOrd)   : 0;
+  var lmtdAovVal = ovLmtdOrd>0 ? Math.round(ovLmtdGmv/ovLmtdOrd) : 0;
+  var aovDeltaVal= lmtdAovVal>0 ? Math.round((mtdAovVal-lmtdAovVal)/lmtdAovVal*100) : 0;
+
   // Scorecards: MTD | LMTD pairs with delta as subtitle
   function mtdCard(label, mtdV, lmtdV, dPct, cls){
     var dColor=Number(dPct||0)>=0?'#0e9f6e':'#e02424';
@@ -1054,13 +1169,38 @@ function renderMtd(){
       +(dPct!==undefined?' &nbsp;<b style="color:'+dColor+'">'+delta(dPct||0)+'</b>':'')
       +'</div></div>';
   }
+  // 6 cards: MTD GMV | MTD Orders | MTD Active Mx | Lost Mx | Retained Mx | New OB
+  // Lost Mx = pending_retention_mx (LM active not yet ordered CM)
+  // Retained Mx = retained_mx (CM retained from LM active)
+  // New OB = mtd_new_ob this month vs lmtd_new_ob same period last month
+  var retOvMtd = RET.filter(function(r){
+    return String(r.scope_type||"").toLowerCase()==="overall";
+  })[0]||{};
+  var lostMxCm   = Number(retOvMtd.pending_retention_mx||0);
+  var lostMxLm   = Number(retOvMtd.prev_active_mx||0);   // LM active (denominator context)
+  var retainedCm = Number(retOvMtd.retained_mx||0);
+  var retainedLm = Number(retOvMtd.prev_active_mx||0);
+  var ovMtdNewOb  = allWhMtd.reduce(function(s,r){return s+Number(r.mtd_new_ob||0);},0)  || Number(kpiOv.mtd_new_ob||0);
+  var ovLmtdNewOb = allWhMtd.reduce(function(s,r){return s+Number(r.lmtd_new_ob||0);},0);
+  var lostDelta   = lostMxLm>0 ? Math.round((lostMxCm-lostMxLm)/lostMxLm*100) : undefined;
+  var retDelta    = retainedLm>0 ? Math.round((retainedCm-retainedLm)/retainedLm*100) : undefined;
+  var newObDelta  = ovLmtdNewOb>0 ? Math.round((ovMtdNewOb-ovLmtdNewOb)/ovLmtdNewOb*100) : undefined;
+  // For Lost Mx: lower is better — invert color logic
+  function mtdCardInv(label, cmV, lmV, dPct, cls){
+    var dColor=dPct!==undefined?(Number(dPct||0)<=0?'#0e9f6e':'#e02424'):'#64748b';
+    return '<div class="kpi'+(cls?' '+cls:'')+'"><div class="kpi-lbl">'+label+'</div>'
+      +'<div class="kpi-val">'+cmV+'</div>'
+      +'<div class="kpi-sub">LM Active: '+lmV
+      +(dPct!==undefined?' &nbsp;<b style="color:'+dColor+'">'+delta(dPct||0)+'</b>':'')
+      +'</div></div>';
+  }
   document.getElementById("mtd-kpis").innerHTML=
-    mtdCard("MTD GMV",      fmtL(scope.mtd_gmv||0),      fmtL(scope.lmtd_gmv||0),      scope.gmv_delta_pct,    "g")+
-    mtdCard("MTD Orders",   fmt(scope.mtd_orders||0),     fmt(scope.lmtd_orders||0),     scope.orders_delta_pct, "g")+
-    mtdCard("MTD Active Mx",fmt(scope.mtd_merchants||0),  fmt(scope.lmtd_merchants||0),  scope.merchants_delta_pct,"t")+
-    kpiHtml("GMV Δ% vs LMTD",   delta(scope.gmv_delta_pct||0),    "Same day last month",Number(scope.gmv_delta_pct||0)>=0?"g":"r")+
-    kpiHtml("Orders Δ% vs LMTD",delta(scope.orders_delta_pct||0), "Same day last month",Number(scope.orders_delta_pct||0)>=0?"g":"r")+
-    kpiHtml("Mx Δ% vs LMTD",    delta(scope.merchants_delta_pct||0),"Same day last month",Number(scope.merchants_delta_pct||0)>=0?"g":"r");
+    mtdCard("MTD GMV",        fmtL(scope.mtd_gmv||0),   fmtL(scope.lmtd_gmv||0),   scope.gmv_delta_pct,    "g")+
+    mtdCard("MTD Orders",     fmt(scope.mtd_orders||0),  fmt(scope.lmtd_orders||0),  scope.orders_delta_pct, "g")+
+    mtdCard("MTD Active Mx",  fmt(scope.mtd_merchants||0),fmt(scope.lmtd_merchants||0),scope.merchants_delta_pct,"t")+
+    mtdCardInv("Lost Mx (Pending)", fmt(lostMxCm), fmt(lostMxLm), lostDelta, "r")+
+    mtdCard("Retained Mx",    fmt(retainedCm),    fmt(retainedLm),   retDelta,    "g")+
+    mtdCard("New OB",         fmt(ovMtdNewOb),    fmt(ovLmtdNewOb),  newObDelta,  "t");
 
   // WH table — add LMTD mx, delta mx, lost mx, new mx; column totals; no New OB
   var whRows = mtdRows("warehouse").filter(function(r){return !wh||(r.dimension_value===wh||r.warehouse===wh);});
@@ -1205,12 +1345,12 @@ function renderMtd(){
   makeCh("c-target",{type:"bar",data:{labels:whNames,datasets:[
     {label:"Actual GMV",  data:whActGmv,backgroundColor:"#1a56db88"},
     {label:"Target GMV",  data:whTgtGmv,backgroundColor:"#e2e8f0",borderColor:"#94a3b8",borderWidth:1}
-  ]},options:{plugins:{legend:{position:"bottom",labels:{font:{size:10},boxWidth:10}}},scales:_scales(fmtL)}});
+  ]},options:{plugins:{legend:{position:"bottom",labels:{font:{size:10},boxWidth:10}},inlineLabels:{formatter:fmtL,color:"#1e293b"}},scales:_scales(fmtL)}});
 
   // New OB per day
   makeCh("c-new-merch",{type:"bar",data:{labels:dLabels,datasets:[
     {label:"New OB",data:dNewOb,backgroundColor:"#0e9f6e88"}
-  ]},options:{plugins:{legend:{display:false}},scales:_scales()}});
+  ]},options:{plugins:{legend:{display:false},inlineLabels:{formatter:fmt,color:"#1e293b"}},scales:_scales()}});
 
   // Orders per day MTD vs LMTD
   makeCh("c-daily-ord",{type:"line",data:{labels:dLabels,datasets:[
@@ -1313,7 +1453,7 @@ function renderBeat(){
       makeCh("c-beat-type",{type:"bar",data:{labels:mtLabels,datasets:[
         {label:"Beat Adherence %",data:mtAdh,backgroundColor:"#1a56db88"},
         {label:"Visit Conv %",    data:mtConv,backgroundColor:"#0e9f6e88"}
-      ]},options:{plugins:{legend:{position:"bottom",labels:{font:{size:10},boxWidth:10}}},
+      ]},options:{plugins:{legend:{position:"bottom",labels:{font:{size:10},boxWidth:10}},inlineLabels:{formatter:function(v){return v+"%";},color:"#1e293b"}},
         scales:{x:{ticks:Object.assign({},_XTICK,{maxRotation:30})},
                 y:{min:0,max:100,ticks:Object.assign({},_YTICK,{callback:function(v){return v+"%";}})}}
       }});
@@ -1331,7 +1471,7 @@ function renderBeat(){
           {label:"Beat Adherence %",data:srTop15.map(function(r){return Number(r.beat_adherence_pct||0);}),backgroundColor:"#1a56db88"},
           {label:"Visit Conv %",    data:srTop15.map(function(r){return Number(r.visit_conversion_pct||0);}),backgroundColor:"#0e9f6e88"}
         ]
-      },options:{indexAxis:"y",plugins:{legend:{position:"bottom",labels:{font:{size:10},boxWidth:10}}},
+      },options:{indexAxis:"y",plugins:{legend:{position:"bottom",labels:{font:{size:10},boxWidth:10}},inlineLabels:{formatter:function(v){return v+"%";},color:"#1e293b"}},
         scales:{x:{min:0,max:100,ticks:Object.assign({},_XTICK,{callback:function(v){return v+"%";}})},y:{ticks:_YTICK}}}
       });
     }
