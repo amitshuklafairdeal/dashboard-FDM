@@ -1,0 +1,1553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FairDeal Sales Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" crossorigin="anonymous"></script>
+<style>
+:root{--pri:#1a56db;--pri2:#1240ab;--ok:#0e9f6e;--warn:#f59e0b;--err:#e02424;--pur:#7e3af2;--teal:#0694a2;--bg:#f1f5f9;--card:#fff;--text:#0f172a;--muted:#64748b;--bdr:#e2e8f0}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:13px}
+/* Header */
+.hdr{background:linear-gradient(135deg,#1a56db,#1240ab);color:#fff;display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;-webkit-justify-content:space-between;justify-content:space-between;padding:0 20px;height:52px;position:-webkit-sticky;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.hdr h1{font-size:16px;font-weight:700}.hdr .sub{font-size:11px;opacity:.8}
+.hdr-right{text-align:right;font-size:11px;opacity:.85}.hdr-right strong{display:block;font-size:13px}
+/* Filter bar */
+.fbar{background:#fff;border-bottom:2px solid var(--bdr);display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;gap:10px;padding:0 20px;height:48px;position:-webkit-sticky;position:sticky;top:52px;z-index:99;-webkit-flex-wrap:wrap;flex-wrap:wrap}
+.fbar label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;white-space:nowrap}
+.fbar select{border:1px solid var(--bdr);border-radius:6px;padding:4px 10px;font-size:12px;color:var(--text);background:#f8fafc;cursor:pointer;outline:none}
+.fbar select:focus{border-color:var(--pri)}
+.sep{width:1px;height:22px;background:var(--bdr)}
+/* Tabs */
+.tabs{background:#fff;border-bottom:2px solid var(--bdr);display:-webkit-flex;display:flex;padding:0 20px;overflow-x:auto;-webkit-overflow-scrolling:touch;gap:2px;position:-webkit-sticky;position:sticky;top:100px;z-index:98}
+.tab{padding:9px 16px;cursor:pointer;font-weight:600;font-size:12px;color:var(--muted);border-bottom:3px solid transparent;white-space:nowrap;transition:color .15s}
+.tab:hover{color:var(--pri)}.tab.active{color:var(--pri);border-bottom-color:var(--pri)}
+/* Layout */
+.main{padding:14px 20px;max-width:1700px;margin:0 auto}
+.sec{display:none}.sec.active{display:block}
+/* KPI row */
+.kpi-row{display:grid;gap:10px;margin-bottom:14px}
+.k4{grid-template-columns:repeat(4,1fr)}.k5{grid-template-columns:repeat(5,1fr)}.k6{grid-template-columns:repeat(6,1fr)}
+.kpi{background:#fff;border-radius:8px;padding:12px 16px;box-shadow:0 1px 3px rgba(0,0,0,.07);border-left:4px solid var(--pri)}
+.kpi.g{border-left-color:var(--ok)}.kpi.o{border-left-color:var(--warn)}.kpi.r{border-left-color:var(--err)}.kpi.p{border-left-color:var(--pur)}.kpi.t{border-left-color:var(--teal)}
+.kpi-lbl{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.kpi-val{font-size:22px;font-weight:800;color:var(--text);line-height:1.1;margin:2px 0}
+.kpi-sub{font-size:11px;color:var(--muted)}
+/* Cards */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px}
+.g73{display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:12px}
+.card{background:#fff;border-radius:8px;padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,.07);margin-bottom:12px}
+.card-title{font-size:12px;font-weight:700;color:var(--text);margin-bottom:10px;display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;gap:6px}
+.dot{width:8px;height:8px;border-radius:50%;-webkit-flex-shrink:0;flex-shrink:0}
+/* Table */
+.tbl-wrap{overflow-x:auto;max-height:300px;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.tbl{width:100%;border-collapse:collapse;font-size:12px}
+.tbl th{background:#f8fafc;padding:6px 10px;text-align:left;font-weight:700;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--bdr);white-space:nowrap;position:-webkit-sticky;position:sticky;top:0;z-index:1}
+.tbl td{padding:6px 10px;border-bottom:1px solid #f1f5f9;vertical-align:middle}
+.tbl tr:last-child td{border:none}.tbl tr:hover td{background:#f8fafc}
+.num{text-align:right;font-weight:600}.ctr{text-align:center}
+/* Tags */
+.tag{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px}
+.tg{background:#dcfce7;color:#166534}.tr{background:#fee2e2;color:#991b1b}.to{background:#fef3c7;color:#92400e}.tb{background:#dbeafe;color:#1e40af}.tp{background:#ede9fe;color:#5b21b6}.tn{background:#f1f5f9;color:#475569}
+.tag-Gold{background:#fef3c7;color:#92400e}.tag-Silver{background:#e2e8f0;color:#374151}.tag-Bronze{background:#fed7aa;color:#92400e}.tag-Explorer{background:#dbeafe;color:#1e40af}.tag-Hunter{background:#ede9fe;color:#5b21b6}
+/* Progress bar */
+.pb{background:#e2e8f0;border-radius:4px;height:6px;overflow:hidden;margin-top:3px}
+.pb-f{height:100%;border-radius:4px}
+/* Movement matrix */
+.matrix table th,.matrix table td{text-align:center;font-size:11px;padding:6px 8px;border:1px solid var(--bdr)}
+.matrix table th{background:#f8fafc;font-weight:700;color:var(--muted)}
+.heat0{background:#f8fafc}.heat1{background:#dbeafe;color:#1e40af}.heat2{background:#bfdbfe;color:#1e40af}.heat3{background:#93c5fd;color:#1e3a8a}.heat4{background:#3b82f6;color:#fff}
+/* Delta badges */
+.up{color:#0e9f6e;font-size:11px}.dn{color:#e02424;font-size:11px}
+/* Loading overlay */
+#loading{position:fixed;top:0;left:0;right:0;bottom:0;background:var(--bg);display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;-webkit-justify-content:center;justify-content:center;z-index:999;font-size:15px;color:var(--muted)}
+/* Responsive */
+@media(max-width:1100px){.k5,.k6{grid-template-columns:repeat(3,1fr)}.k4{grid-template-columns:repeat(2,1fr)}.g2,.g73{grid-template-columns:1fr}}
+@media(max-width:640px){.k5,.k6,.k4{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:1fr 1fr}}
+@media(max-width:480px){
+  .k5,.k6,.k4{grid-template-columns:repeat(2,1fr)}.kpi-val{font-size:18px}
+  .hdr h1{font-size:13px}.fbar{height:auto;padding:8px 12px;gap:6px}
+  .main{padding:10px 12px}.tab{padding:8px 10px;font-size:11px}
+  .g2,.g3,.g73{grid-template-columns:1fr}.card{padding:10px 12px}
+}
+</style>
+</head>
+<body>
+<div id="loading">⏳ Loading dashboard…</div>
+
+<div id="app" style="display:none">
+<!-- Header -->
+<div class="hdr">
+  <div style="display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;gap:10px">
+    <span style="font-size:22px">📊</span>
+    <div><h1>FairDeal Market — Sales Dashboard</h1><div class="sub">GSB · Retention · MTD · Beat Performance</div></div>
+  </div>
+  <div class="hdr-right"><strong id="hdr-date"></strong><span id="hdr-refresh"></span></div>
+</div>
+
+<!-- Filters -->
+<div class="fbar">
+  <label title="Filters WH Summary, GSB, Retention tabs">Warehouse</label>
+  <select id="fWarehouse" onchange="applyFilter()"><option value="">All Warehouses</option></select>
+  <div class="sep"></div>
+  <label>Salesman</label>
+  <select id="fSalesman" onchange="applyFilter()"><option value="">All Salesmen</option></select>
+</div>
+
+<!-- Tabs -->
+<div class="tabs">
+  <div class="tab active" onclick="showTab('wh',this)">🏢 WH Summary</div>
+  <div class="tab" onclick="showTab('gsb',this)">🏆 GSB Dashboard</div>
+  <div class="tab" onclick="showTab('ret',this)">🔄 Retention</div>
+  <div class="tab" onclick="showTab('mtd',this)">📈 MTD vs LMTD</div>
+  <div class="tab" onclick="showTab('beat',this)">🗺️ Beat Performance</div>
+</div>
+
+<div class="main">
+
+<!-- ═══════════════════ WH SUMMARY ═══════════════════ -->
+<div class="sec active" id="sec-wh">
+  <div class="kpi-row k4" id="wh-kpis"></div>
+  <div class="g2">
+    <div class="card"><div class="card-title"><span class="dot" style="background:var(--pri)"></span>GMV by Warehouse</div><canvas id="c-wh-gmv" style="max-height:160px"></canvas></div>
+    <div class="card"><div class="card-title"><span class="dot" style="background:var(--ok)"></span>Active Merchants by Warehouse</div><canvas id="c-wh-merch" style="max-height:160px"></canvas></div>
+  </div>
+  <div class="card"><div class="card-title"><span class="dot" style="background:var(--warn)"></span>Warehouse KPI Summary</div><div class="tbl-wrap" id="wh-main-tbl"></div></div>
+  <div class="card"><div class="card-title"><span class="dot" style="background:var(--pur)"></span>GSB Last Month vs Active Current Month — Warehouse Comparison</div><div class="tbl-wrap" id="wh-gsb-tbl"></div></div>
+</div>
+
+<!-- ═══════════════════ GSB ═══════════════════ -->
+<div class="sec" id="sec-gsb">
+  <div style="display:-webkit-flex;display:flex;gap:6px;-webkit-flex-wrap:wrap;flex-wrap:wrap;margin-bottom:10px;-webkit-align-items:center;align-items:center">
+    <span style="font-size:11px;color:#64748b;font-weight:600;margin-right:4px">GSB Thresholds (order days/month):</span>
+    <span class="tag-Gold" style="padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">Gold ≥15</span>
+    <span class="tag-Silver" style="padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">Silver 10–14</span>
+    <span class="tag-Bronze" style="padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">Bronze 4–9</span>
+    <span class="tag-Explorer" style="padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">Explorer 2–3</span>
+    <span class="tag-Hunter" style="padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">Hunter ≤1</span>
+  </div>
+  <div class="kpi-row k6" id="gsb-kpis"></div>
+  <div class="kpi-row k6" id="gsb-kpis2" style="margin-top:0"></div>
+  <div class="g2">
+    <div class="card"><div class="card-title"><span class="dot" style="background:var(--pri)"></span>Bucket Distribution (Current Month)</div><canvas id="c-gsb-pie" style="max-height:160px"></canvas></div>
+    <div class="card"><div class="card-title"><span class="dot" style="background:var(--ok)"></span>GMV by Bucket</div><canvas id="c-gsb-gmv" style="max-height:160px"></canvas></div>
+  </div>
+  <div class="card"><div class="card-title"><span class="dot" style="background:var(--pur)"></span>6-Month Bucket Trend</div><canvas id="c-gsb-trend" style="max-height:140px"></canvas></div>
+  <div class="g2">
+    <div class="card"><div class="card-title"><span class="dot" style="background:var(--ok)"></span>Current Month — Bucket Summary</div><div class="tbl-wrap" id="gsb-cur-tbl"></div></div>
+    <div class="card"><div class="card-title"><span class="dot" style="background:var(--warn)"></span>Previous Month — Bucket Summary</div><div class="tbl-wrap" id="gsb-prev-tbl"></div></div>
+  </div>
+  <div class="card"><div class="card-title"><span class="dot" style="background:var(--teal)"></span>Current Month Retention — Previous Bucket → Current Bucket</div><div class="tbl-wrap" id="gsb-ret-cross"></div></div>
+  <div class="card"><div class="card-title"><span class="dot" style="background:var(--pri)"></span>Salesman Bucket Performance (Last Month Buckets + Current Month KPIs)</div><div class="tbl-wrap" id="gsb-sal-tbl"></div></div>
+</div>
+
+<!-- ═══════════════════ RETENTION ═══════════════════ -->
+<div class="sec" id="sec-ret">
+  <div class="kpi-row k4" id="ret-kpis" style="grid-template-columns:repeat(4,1fr)"></div>
+<div class="kpi-row k4" id="ret-kpis2" style="grid-template-columns:repeat(4,1fr);margin-top:0"></div>
+  <div class="g2">
+    <div class="card"><div class="card-title"><span class="dot" style="background:var(--ok)"></span>Retention % by Bucket</div><canvas id="c-ret-bucket" style="max-height:160px"></canvas></div>
+    <div class="card"><div class="card-title"><span class="dot" style="background:var(--pri)"></span>Merchant Flow (Retained / Upgraded / Churned)</div><canvas id="c-ret-flow" style="max-height:160px"></canvas></div>
+  </div>
+  <div class="card"><div class="card-title"><span class="dot" style="background:var(--teal)"></span>Retention by Warehouse</div><div class="tbl-wrap" id="ret-wh-tbl"></div></div>
+  <div class="card"><div class="card-title"><span class="dot" style="background:var(--pri)"></span>Salesman Retention View</div><div class="tbl-wrap" id="ret-sal-tbl"></div></div>
+  <div class="card"><div class="card-title"><span class="dot" style="background:var(--pur)"></span>Merchant-level Bucket Change (Top 50)</div><div class="tbl-wrap" id="ret-merch-tbl"></div></div>
+</div>
+
+<!-- ═══════════════════ MTD ═══════════════════ -->
+<div class="sec" id="sec-mtd">
+  <div class="kpi-row k6" id="mtd-kpis"></div>
+  <div class="g2">
+    <div class="card"><div class="card-title"><span class="dot" style="background:var(--pri)"></span>Daily GMV — MTD vs LMTD</div><canvas id="c-daily-gmv" style="max-height:160px"></canvas></div>
+    <div class="card"><div class="card-title"><span class="dot" style="background:var(--ok)"></span>Target vs GMV by Warehouse</div><canvas id="c-target" style="max-height:160px"></canvas></div>
+  </div>
+  <div class="g3">
+    <div class="card"><div class="card-title"><span class="dot" style="background:var(--warn)"></span>New Onboarding / Day</div><canvas id="c-new-merch" style="max-height:140px"></canvas></div>
+    <div class="card"><div class="card-title"><span class="dot" style="background:var(--pur)"></span>Orders per Day</div><canvas id="c-daily-ord" style="max-height:140px"></canvas></div>
+    <div class="card"><div class="card-title"><span class="dot" style="background:var(--teal)"></span>AOV Trend</div><canvas id="c-aov" style="max-height:140px"></canvas></div>
+  </div>
+  <div class="card"><div class="card-title"><span class="dot" style="background:var(--pri)"></span>MTD vs LMTD by Warehouse</div><div class="tbl-wrap" id="mtd-wh-tbl"></div></div>
+  <div class="card"><div class="card-title"><span class="dot" style="background:var(--ok)"></span>Salesman GMV — MTD vs LMTD</div><div class="tbl-wrap" id="mtd-sal-tbl"></div></div>
+  <div class="card"><div class="card-title"><span class="dot" style="background:var(--warn)"></span>Warehouse Target Achievement</div><div class="tbl-wrap" id="mtd-target-tbl"></div></div>
+</div>
+
+<!-- ═══════════════════ BEAT ═══════════════════ -->
+<div class="sec" id="sec-beat">
+  <div class="kpi-row k5" id="beat-kpis"></div>
+  <div class="g73">
+    <div class="card"><div class="card-title"><span class="dot" style="background:var(--pri)"></span>Beat → Visit → Order Funnel</div><div id="beat-funnel"></div></div>
+    <div class="card"><div class="card-title"><span class="dot" style="background:var(--ok)"></span>Conversion by Merchant Type</div><canvas id="c-beat-type" style="max-height:160px"></canvas></div>
+  </div>
+  <div class="g2">
+    <div class="card"><div class="card-title"><span class="dot" style="background:var(--pur)"></span>SR Visit Rate (Top 15)</div><canvas id="c-beat-sr" style="max-height:180px"></canvas></div>
+    <div class="card"><div class="card-title"><span class="dot" style="background:var(--warn)"></span>Warehouse Beat Summary</div><div class="tbl-wrap" id="beat-wh-tbl"></div></div>
+  </div>
+  <div class="card"><div class="card-title"><span class="dot" style="background:var(--teal)"></span>SR Beat Leaderboard</div><div class="tbl-wrap" id="beat-sr-tbl"></div></div>
+</div>
+
+</div><!-- .main -->
+</div><!-- #app -->
+
+<script>
+// ── CONFIG ─────────────────────────────────────────────────────────────────────
+// No API key needed — uses Google's public gviz endpoint.
+// Only requirement: Google Sheet must be shared as "Anyone with link → Viewer"
+var SHEET_ID = "1mhSuN9f2jbY887wdwgOoTNw_GZw8Wuzoam77qMABeYs";
+// ─────────────────────────────────────────────────────────────────────────────
+
+var P = {kpi:[],gsb:[],gsbMovement:[],retention:[],mtdLmtd:[],beat:[],target:[],refreshedAt:"",_fromCache:false};
+
+// Shortcuts to pre-computed arrays
+var KPI  = P.kpi         || [];  // Dashboard_KPI rows
+var GSB  = P.gsb         || [];  // Dashboard_GSB rows (6-month bucket summary)
+var MOV  = P.gsbMovement || [];  // Dashboard_GSB_Movement rows
+var RET  = P.retention   || [];  // Dashboard_Retention rows
+var MTD  = P.mtdLmtd     || [];  // Dashboard_MTD_LMTD rows
+var BEAT = P.beat        || [];  // Dashboard_Beat rows
+var TGT  = P.target      || [];  // Dashboard_Target rows
+
+var CH = {};  // Chart.js instances (lazy, never recreated)
+var BUCKETS = ["Gold","Silver","Bronze","Explorer","Hunter"];
+var BCOLORS = {Gold:"#f59e0b",Silver:"#6b7280",Bronze:"#b45309",Explorer:"#1a56db",Hunter:"#7e3af2"};
+var PALETTE = ["#1a56db","#0e9f6e","#f59e0b","#e02424","#7e3af2","#0694a2","#f97316","#14b8a6"];
+
+// ── Format helpers ────────────────────────────────────────────────────────────
+function fmt(n){return Number(n||0).toLocaleString("en-IN")}
+function fmtL(n){var v=Number(n||0);return v>=1e7?"₹"+(v/1e7).toFixed(2)+"Cr":v>=1e5?"₹"+(v/1e5).toFixed(1)+"L":"₹"+fmt(v)}
+function fmtPct(n){return Number(n||0).toFixed(1)+"%"}
+function delta(p){
+  var v=Number(p||0);
+  if(v===0)return'<span style="color:#94a3b8">—</span>';
+  return v>0?'<span class="up">▲'+Math.abs(v).toFixed(1)+'%</span>':'<span class="dn">▼'+Math.abs(v).toFixed(1)+'%</span>';
+}
+function achColor(p){return p>=80?"#0e9f6e":p>=50?"#f59e0b":"#e02424"}
+function retColor(p){return p>=70?"#0e9f6e":p>=50?"#f59e0b":"#e02424"}
+function kpiHtml(label,val,sub,cls){
+  return'<div class="kpi '+(cls||'')+'"><div class="kpi-lbl">'+label+'</div>'
+   +'<div class="kpi-val">'+val+'</div>'+(sub?'<div class="kpi-sub">'+sub+'</div>':'')+'</div>';
+}
+function bucketTag(b){return'<span class="tag tag-'+b+'">'+b+'</span>'}
+function tblHead(cols){return'<table class="tbl"><thead><tr>'+cols.map(c=>'<th>'+c+'</th>').join('')+'</tr></thead><tbody>'}
+function bar(pct,col){return'<div class="pb"><div class="pb-f" style="width:'+Math.min(pct,100)+'%;background:'+(col||'var(--pri)')+'"></div></div>'}
+
+// ── Lookup helpers (all O(1) using pre-computed data) ─────────────────────────
+function kpiRow(scopeType, scope) {
+  for(var i=0;i<KPI.length;i++){if(KPI[i].scope_type===scopeType&&KPI[i].scope===scope)return KPI[i];}
+  return {};
+}
+function retRow(scopeType, scope) {
+  for(var i=0;i<RET.length;i++){if(RET[i].scope_type===scopeType&&RET[i].scope===scope)return RET[i];}
+  return {};
+}
+function gsbRows(month, wh) {
+  return GSB.filter(function(r){
+    var ok=true;
+    if(month && String(r.order_month||"").substring(0,7)!==month) ok=false;
+    if(wh && r.warehouse!==wh) ok=false;
+    return ok;
+  });
+}
+function mtdRows(rowType) {
+  var t=rowType.toLowerCase();
+  return MTD.filter(function(r){return String(r.row_type||"").toLowerCase().trim()===t;});
+}
+// Get target value from Dashboard_Target sheet (fallback when KPI targets are 0)
+// wh = warehouse name (empty string = sum all warehouses)
+function tgtFromSheet(wh, key){
+  var whLc = (wh||"").toLowerCase().trim();
+  var rows = whLc ? TGT.filter(function(r){return (r.warehouse||"").toLowerCase().trim()===whLc;}) : TGT;
+  return rows.reduce(function(s,r){return s+Number(r[key]||0);},0);
+}
+function beatRows(scopeType) {
+  var t=scopeType.toLowerCase();
+  return BEAT.filter(function(r){return String(r.scope_type||"").toLowerCase().trim()===t;});
+}
+
+// ── Filters ───────────────────────────────────────────────────────────────────
+var CUR_WH  = "";
+var CUR_SAL = "";
+
+function populateFilters(){
+  var whs=new Set(), sals=new Set();
+  KPI.forEach(function(r){
+    if(r.scope_type==="warehouse")whs.add(r.scope);
+    if(r.scope_type==="salesman"){sals.add(r.scope);if(r.warehouse)whs.add(r.warehouse);}
+  });
+  fillSel("fWarehouse",[...whs].sort());
+  fillSel("fSalesman",[...sals].sort());
+}
+function fillSel(id,opts){
+  var el=document.getElementById(id);
+  opts.forEach(function(o){var op=document.createElement("option");op.value=o;op.textContent=o;el.appendChild(op);});
+}
+function applyFilter(){
+  CUR_WH  = document.getElementById("fWarehouse").value;
+  CUR_SAL = document.getElementById("fSalesman").value;
+  renderActive();
+}
+
+// ── Current/prev month — populated in initWithData() after data loads ─────────
+var CUR_MON  = "";
+var PREV_MON = "";
+
+// ── Tab nav ───────────────────────────────────────────────────────────────────
+var activeTab = "wh";
+function showTab(name,el){
+  document.querySelectorAll(".sec").forEach(function(s){s.classList.remove("active");});
+  document.querySelectorAll(".tab").forEach(function(t){t.classList.remove("active");});
+  document.getElementById("sec-"+name).classList.add("active");
+  el.classList.add("active");
+  activeTab=name;
+  requestAnimationFrame(function(){renderTab(name);});
+}
+function renderActive(){requestAnimationFrame(function(){renderTab(activeTab);});}
+function renderTab(n){
+  if(n==="wh")  renderWh();
+  else if(n==="gsb")  renderGsb();
+  else if(n==="ret")  renderRet();
+  else if(n==="mtd")  renderMtd();
+  else if(n==="beat") renderBeat();
+}
+
+// ── Chart helpers ─────────────────────────────────────────────────────────────
+function makeCh(id, config){
+  if(CH[id]){try{CH[id].destroy();}catch(e){}CH[id]=null;}
+  var el=document.getElementById(id);
+  if(!el)return;
+  CH[id]=new Chart(el,config);
+}
+var _XTICK={color:"#64748b",maxRotation:45,font:{size:10}};
+var _YTICK={color:"#64748b"};
+function _scales(yCb){return{x:{ticks:_XTICK},y:{ticks:Object.assign({},_YTICK,yCb?{callback:yCb}:{})}};}
+
+// ════════════════════════════════════════════════════════════════════════════
+// WH SUMMARY TAB
+// Scorecard:  GMV | Orders | New OB | Re-OB | Reactivation | Active Mx | Active Retention Mx | Retention %
+// Table:      WH | New OB | Re-OB | Reactivation | Active Mx | Orders | GMV | AOV | Per Day Ord | Per Day GMV | Ach%
+// ════════════════════════════════════════════════════════════════════════════
+function renderWh(){
+  var overall = kpiRow("overall","All");
+  var scope   = CUR_WH ? kpiRow("warehouse",CUR_WH) : overall;
+  var day     = new Date().getDate() || 1;
+
+  // ── 8-card scorecard with target vs achievement ──────────────────────────
+  var retMx  = Number(scope.mtd_retention||scope.total_mx_retained||0);
+  var retLm  = Number(scope.total_mx_lm||0);
+  var retPct = Number(scope.total_retention_pct||0);
+
+  function kpiTgt(label,actual,tgt,sub,cls,rawActual){
+    // rawActual = numeric value for ach% calc (actual may be a formatted string like "₹12.3L")
+    var numAct = rawActual!==undefined ? Number(rawActual||0)
+               : (typeof actual==='number' ? actual : 0);
+    var achPct = tgt>0?Math.round(numAct/tgt*100):0;
+    var achClr = achPct>=80?"#0e9f6e":achPct>=50?"#f59e0b":"#e02424";
+    var tgtLine= tgt>0
+      ? '<span style="font-size:10px;color:#64748b">Tgt: '+fmtL(tgt)
+        +' &nbsp;<b style="color:'+achClr+'">'+achPct+'%</b></span>'
+      : '<span style="font-size:10px;color:#94a3b8">No target</span>';
+    return '<div class="kpi'+(cls?' '+cls:'')+'"><div class="kpi-lbl">'+label+'</div>'
+      +'<div class="kpi-val">'+actual+'</div>'
+      +'<div class="kpi-sub">'+sub+'</div>'
+      +'<div style="margin-top:3px">'+tgtLine+'</div></div>';
+  }
+  function kpiTgtPct(label,actual,tgtCount,lmCount,cls){
+    var achLine = tgtCount>0
+      ? '<span style="font-size:10px;color:#64748b">Tgt: '+fmt(tgtCount)
+        +' &nbsp;<b style="color:'+(actual>=tgtCount?"#0e9f6e":"#e02424")+'">'+Math.round(actual/tgtCount*100)+'%</b></span>'
+      : '<span style="font-size:10px;color:#94a3b8">No target</span>';
+    return '<div class="kpi'+(cls?' '+cls:'')+'"><div class="kpi-lbl">'+label+'</div>'
+      +'<div class="kpi-val">'+actual+'</div>'
+      +'<div class="kpi-sub">of '+fmt(lmCount)+' active last month</div>'
+      +'<div style="margin-top:3px">'+achLine+'</div></div>';
+  }
+
+  // Resolve targets: prefer KPI row targets, fall back to Dashboard_Target sheet
+  var scopeWh = CUR_WH||"";
+  var tGmv  = Number(scope.target_gmv||0)        || tgtFromSheet(scopeWh,"target_gmv");
+  var tOrd  = Number(scope.target_orders||0)     || tgtFromSheet(scopeWh,"target_orders");
+  var tNewOb= Number(scope.target_new_ob||0)     || tgtFromSheet(scopeWh,"target_new_ob");
+  var tReOb = Number(scope.target_re_ob||0)      || tgtFromSheet(scopeWh,"target_re_ob");
+  var tReact= Number(scope.target_reactivation||0)|| tgtFromSheet(scopeWh,"target_reactivation");
+  var tAMx  = Number(scope.target_active_mx||0)  || tgtFromSheet(scopeWh,"target_active_mx");
+  var tRet  = Number(scope.target_retention||0)  || tgtFromSheet(scopeWh,"target_retention");
+
+  // LMTD: prefer MTD WH rows sum (day-trimmed) over KPI full-month lmtd
+  var mtdWhScope = CUR_WH
+    ? mtdRows("warehouse").filter(function(r){return r.dimension_value===CUR_WH||r.warehouse===CUR_WH;})
+    : mtdRows("warehouse");
+  var lmtdGmvVal  = mtdWhScope.reduce(function(s,r){return s+Number(r.lmtd_gmv||0);},0)
+                    || Number(scope.lmtd_gmv||0);
+  var lmtdOrdVal  = mtdWhScope.reduce(function(s,r){return s+Number(r.lmtd_orders||0);},0)
+                    || Number(scope.lmtd_orders||0);
+  var lmtdMxVal   = mtdWhScope.reduce(function(s,r){return s+Number(r.lmtd_merchants||0);},0)
+                    || Number(scope.lmtd_merchants||0);
+  var gmvDeltaVal = lmtdGmvVal>0
+    ? Math.round((Number(scope.mtd_gmv||0)-lmtdGmvVal)/lmtdGmvVal*100)
+    : Number(scope.gmv_delta_pct||0);
+  var ordDeltaVal = lmtdOrdVal>0
+    ? Math.round((Number(scope.mtd_orders||0)-lmtdOrdVal)/lmtdOrdVal*100)
+    : Number(scope.orders_delta_pct||0);
+  var mxDeltaVal  = lmtdMxVal>0
+    ? Math.round((Number(scope.mtd_merchants||0)-lmtdMxVal)/lmtdMxVal*100)
+    : Number(scope.merchants_delta_pct||0);
+  var lmtdLabel   = MTD.length ? "LMTD (same period)" : "LM Full Month";
+
+  document.getElementById("wh-kpis").innerHTML=
+    kpiTgt("Total GMV",      fmtL(scope.mtd_gmv),    tGmv,
+           lmtdLabel+": "+fmtL(lmtdGmvVal)+"  "+delta(gmvDeltaVal),"",Number(scope.mtd_gmv||0))+
+    kpiTgt("Total Orders",   fmt(scope.mtd_orders),   tOrd,
+           lmtdLabel+": "+fmt(lmtdOrdVal)+"  "+delta(ordDeltaVal),"g",Number(scope.mtd_orders||0))+
+    kpiTgt("New OB",         fmt(scope.mtd_new_ob||0),tNewOb,
+           "App install + 1st order this month","t",Number(scope.mtd_new_ob||0))+
+    kpiTgt("Re-OB",          fmt(scope.mtd_re_ob||0), tReOb,
+           "Install before month, 1st order now","p",Number(scope.mtd_re_ob||0))+
+    kpiTgt("Reactivation",   fmt(scope.mtd_reactivation||0),tReact,
+           "Active before last month, ordering now","o",Number(scope.mtd_reactivation||0))+
+    kpiTgt("Active Merchants",fmt(scope.mtd_merchants),tAMx,
+           lmtdLabel+": "+fmt(lmtdMxVal)+"  "+delta(mxDeltaVal),"g",Number(scope.mtd_merchants||0))+
+    kpiTgtPct("Active Retention Mx",retMx,tRet,retLm,"p")+
+    kpiHtml("Retention %",  fmtPct(retPct),
+           retLm>0?(fmt(retMx)+" / "+fmt(retLm)):"","t");
+
+  // ── Charts ────────────────────────────────────────────────────────────────
+  var whRows = KPI.filter(function(r){
+    return r.scope_type==="warehouse" && (!CUR_WH||r.scope===CUR_WH);
+  });
+  var whs    = whRows.map(function(r){return r.scope;});
+  var whGmv  = whRows.map(function(r){return Number(r.mtd_gmv||0);});
+  var whMerch= whRows.map(function(r){return Number(r.mtd_merchants||0);});
+
+  makeCh("c-wh-gmv",{type:"bar",data:{labels:whs,datasets:[{label:"GMV",data:whGmv,backgroundColor:whs.map(function(_,i){return PALETTE[i%PALETTE.length];})}]},options:{plugins:{legend:{display:false}},scales:_scales(fmtL)}});
+  makeCh("c-wh-merch",{type:"bar",data:{labels:whs,datasets:[{label:"Merchants",data:whMerch,backgroundColor:whs.map(function(_,i){return PALETTE[i%PALETTE.length];})}]},options:{plugins:{legend:{display:false}},scales:_scales()}});
+
+  // ── Warehouse KPI Summary table (transposed: warehouses as columns) ──────────
+  // Helper: show actual then small target+ach% below
+  function actTgt(act,tgt,fmtFn){
+    fmtFn = fmtFn||fmt;
+    if(!tgt||tgt==0) return '<span>'+fmtFn(act)+'</span>';
+    var a=Number(act||0),t=Number(tgt||0);
+    var p=t>0?Math.round(a/t*100):0;
+    var c=p>=80?"#0e9f6e":p>=50?"#f59e0b":"#e02424";
+    return fmtFn(a)+'<br><span style="font-size:10px;color:#94a3b8">T:'+fmtFn(t)
+      +' <b style="color:'+c+'">'+p+'%</b></span>';
+  }
+
+  // Transposed layout: rows = metrics, cols = warehouses
+  var thStyle = 'style="text-align:right;min-width:90px;white-space:nowrap"';
+  var tdTot   = 'style="background:#f0f9ff;font-weight:700;text-align:right"';
+  var html = '<table class="tbl"><thead><tr>'
+    + '<th style="min-width:110px;white-space:nowrap">Metric</th>';
+  whRows.forEach(function(r){ html+='<th '+thStyle+'>'+r.scope+'</th>'; });
+  html += '<th '+thStyle+' style="background:#f0f9ff;text-align:right;min-width:90px">Total</th>'
+    + '</tr></thead><tbody>';
+
+  // Per-WH target fallback: use KPI target cols first, then TGT sheet
+  function _whTgt(r, kpiKey, tgtKey){
+    return Number(r[kpiKey]||0) || tgtFromSheet(r.scope||r.warehouse||"", tgtKey||kpiKey);
+  }
+
+  var mtrxDef = [
+    {lbl:"New OB",        c:"#0694a2",
+     act:function(r){return Number(r.mtd_new_ob||0);},
+     tgt:function(r){return _whTgt(r,"target_new_ob","target_new_ob");}, fn:fmt},
+    {lbl:"Re-OB",         c:"#7e3af2",
+     act:function(r){return Number(r.mtd_re_ob||0);},
+     tgt:function(r){return _whTgt(r,"target_re_ob","target_re_ob");}, fn:fmt},
+    {lbl:"Reactivation",  c:"#f59e0b",
+     act:function(r){return Number(r.mtd_reactivation||0);},
+     tgt:function(r){return _whTgt(r,"target_reactivation","target_reactivation");}, fn:fmt},
+    {lbl:"Active Retention Mx", c:"#1a56db",
+     act:function(r){return Number(r.mtd_retention||r.retention_merchant||0);},
+     tgt:function(r){return _whTgt(r,"target_retention","target_retention");}, fn:fmt},
+    {lbl:"Active Mx",     c:"",
+     act:function(r){return Number(r.mtd_merchants||0);},
+     tgt:function(r){return _whTgt(r,"target_active_mx","target_active_mx");}, fn:fmt},
+    {lbl:"Orders",        c:"",
+     act:function(r){return Number(r.mtd_orders||0);},
+     tgt:function(r){return _whTgt(r,"target_orders","target_orders");}, fn:fmt},
+    {lbl:"GMV",           c:"",
+     act:function(r){return Number(r.mtd_gmv||0);},
+     tgt:function(r){return _whTgt(r,"target_gmv","target_gmv") || tgtFromSheet(r.scope||r.warehouse||"","target_gmv");}, fn:fmtL},
+    {lbl:"AOV",           c:"",
+     act:function(r){return Number(r.mtd_aov||0);},
+     tgt:null, fn:fmtL},
+  ];
+
+  mtrxDef.forEach(function(m){
+    html += '<tr><td><b style="color:'+(m.c||'inherit')+'">'+m.lbl+'</b></td>';
+    var totAct=0, totTgt=0;
+    whRows.forEach(function(r){
+      var a=m.act(r), t=m.tgt?m.tgt(r):0;
+      totAct+=a; totTgt+=t;
+      html += '<td class="num">'+actTgt(a,t,m.fn)+'</td>';
+    });
+    html += '<td class="num" '+tdTot+'>'+actTgt(totAct,totTgt,m.fn)+'</td>';
+    html += '</tr>';
+  });
+
+  // Per Day Orders row
+  html += '<tr><td><b>Per Day Ord</b></td>';
+  var sumOrdForPd=0;
+  whRows.forEach(function(r){
+    var pd=(Number(r.mtd_orders||0)/day).toFixed(1);
+    sumOrdForPd+=Number(r.mtd_orders||0);
+    html+='<td class="num">'+pd+'</td>';
+  });
+  html+='<td class="num" '+tdTot+'>'+(sumOrdForPd/day).toFixed(1)+'</td></tr>';
+
+  // Per Day GMV row
+  html += '<tr><td><b>Per Day GMV</b></td>';
+  var sumGmvForPd=0;
+  whRows.forEach(function(r){
+    var pd=Math.round(Number(r.mtd_gmv||0)/day);
+    sumGmvForPd+=Number(r.mtd_gmv||0);
+    html+='<td class="num">'+fmtL(pd)+'</td>';
+  });
+  html+='<td class="num" '+tdTot+'>'+fmtL(Math.round(sumGmvForPd/day))+'</td></tr>';
+
+  // GMV Ach% row
+  html += '<tr><td><b>GMV Ach%</b></td>';
+  whRows.forEach(function(r){
+    var ach=Number(r.achievement_pct||0);
+    html+='<td class="num"><b style="color:'+achColor(ach)+'">'+fmtPct(ach)+'</b>'+bar(ach,"#0e9f6e")+'</td>';
+  });
+  var totAch=Number(overall.achievement_pct||0);
+  html+='<td class="num" '+tdTot+'><b style="color:'+achColor(totAch)+'">'+fmtPct(totAch)+'</b></td></tr>';
+
+  html+='</tbody></table>';
+  document.getElementById("wh-main-tbl").innerHTML=html;
+
+  // ── GSB Last Month vs Active Current Month comparison table ────────────────
+  // Source: Dashboard_Retention rows (scope_type = "warehouse")
+  var retWH = RET.filter(function(r){
+    return String(r.scope_type||"").toLowerCase()==="warehouse" && (!CUR_WH||r.warehouse===CUR_WH||r.scope===CUR_WH);
+  });
+  // Also include overall row for totals
+  var retOv = RET.filter(function(r){ return String(r.scope_type||"").toLowerCase()==="overall"; })[0]||{};
+
+  html = tblHead([
+    "Warehouse",
+    "Total LM Active","Total CM Active",
+    "GSB Last Month","GSB Retained","GSB Pending","GSB Ret%",
+    "Non-GSB LM","Non-GSB Retained","Non-GSB Pending"
+  ]);
+
+  retWH.forEach(function(r){
+    var wName  = r.warehouse||r.scope||"?";
+    var lmAct  = Number(r.prev_active_mx||0);
+    var cmAct  = Number(r.cur_active_mx||0);
+    var gsbLm  = Number(r.gsb_lm_mx||0);
+    var gsbRet = Number(r.gsb_retained_mx||0);
+    var gsbPen = Number(r.gsb_pending_mx||0);
+    var gsbPct = Number(r.gsb_retention_pct||0);
+    var ngLm   = Number(r.non_gsb_lm_mx||0);
+    var ngRet  = Number(r.non_gsb_retained_mx||0);
+    var ngPen  = Number(r.non_gsb_pending_mx||0);
+    var retClr = gsbPct>=70?"#0e9f6e":gsbPct>=50?"#f59e0b":"#e02424";
+    html+='<tr>'
+      +'<td>'+wName+'</td>'
+      +'<td class="num">'+fmt(lmAct)+'</td>'
+      +'<td class="num"><b style="color:#1a56db">'+fmt(cmAct)+'</b></td>'
+      +'<td class="num"><b style="color:#0e9f6e">'+fmt(gsbLm)+'</b></td>'
+      +'<td class="num">'+fmt(gsbRet)+'</td>'
+      +'<td class="num" style="color:#e02424">'+fmt(gsbPen)+'</td>'
+      +'<td class="num"><b style="color:'+retClr+'">'+fmtPct(gsbPct)+'</b></td>'
+      +'<td class="num">'+fmt(ngLm)+'</td>'
+      +'<td class="num">'+fmt(ngRet)+'</td>'
+      +'<td class="num" style="color:#f59e0b">'+fmt(ngPen)+'</td>'
+      +'</tr>';
+  });
+
+  // Totals row from overall retention row
+  if(retOv.prev_active_mx!==undefined){
+    var tLmAct  = Number(retOv.prev_active_mx||0);
+    var tCmAct  = Number(retOv.cur_active_mx||0);
+    var tGsbLm  = Number(retOv.gsb_lm_mx||0);
+    var tGsbRet = Number(retOv.gsb_retained_mx||0);
+    var tGsbPen = Number(retOv.gsb_pending_mx||0);
+    var tGsbPct = Number(retOv.gsb_retention_pct||0);
+    var tNgLm   = Number(retOv.non_gsb_lm_mx||0);
+    var tNgRet  = Number(retOv.non_gsb_retained_mx||0);
+    var tNgPen  = Number(retOv.non_gsb_pending_mx||0);
+    var tRetClr = tGsbPct>=70?"#0e9f6e":tGsbPct>=50?"#f59e0b":"#e02424";
+    html+='<tr style="background:#f0f9ff;font-weight:700">'
+      +'<td>TOTAL</td>'
+      +'<td class="num">'+fmt(tLmAct)+'</td>'
+      +'<td class="num"><b style="color:#1a56db">'+fmt(tCmAct)+'</b></td>'
+      +'<td class="num"><b style="color:#0e9f6e">'+fmt(tGsbLm)+'</b></td>'
+      +'<td class="num">'+fmt(tGsbRet)+'</td>'
+      +'<td class="num" style="color:#e02424">'+fmt(tGsbPen)+'</td>'
+      +'<td class="num"><b style="color:'+tRetClr+'">'+fmtPct(tGsbPct)+'</b></td>'
+      +'<td class="num">'+fmt(tNgLm)+'</td>'
+      +'<td class="num">'+fmt(tNgRet)+'</td>'
+      +'<td class="num" style="color:#f59e0b">'+fmt(tNgPen)+'</td>'
+      +'</tr>';
+  }
+  html+='</tbody></table>';
+  document.getElementById("wh-gsb-tbl").innerHTML=html;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// GSB TAB
+// ════════════════════════════════════════════════════════════════════════════
+function renderGsb(){
+  var wh = CUR_WH;
+
+  // ── Data prep ─────────────────────────────────────────────────────────────
+  var curRows  = gsbRows(CUR_MON,  wh);
+  var prevRows = gsbRows(PREV_MON, wh);
+
+  // Current month: sum GMV/Orders per bucket (merchant_count is correct for current month too when deduped)
+  var cntByB={}, gmvByB={}, ordByB={};
+  curRows.forEach(function(r){
+    var b=r.gsb_bucket;
+    cntByB[b]=(cntByB[b]||0)+Number(r.merchant_count||0);
+    gmvByB[b]=(gmvByB[b]||0)+Number(r.total_gmv||0);
+    ordByB[b]=(ordByB[b]||0)+Number(r.total_orders||0);
+  });
+
+  // Previous month: GMV + Orders from GSB rows (correct — orders don't double-count)
+  // Merchant counts from KPI overall row (authoritative de-duped per-contact bucket counts)
+  var pGmvByB={}, pOrdByB={};
+  prevRows.forEach(function(r){
+    var b=r.gsb_bucket;
+    pGmvByB[b]=(pGmvByB[b]||0)+Number(r.total_gmv||0);
+    pOrdByB[b]=(pOrdByB[b]||0)+Number(r.total_orders||0);
+  });
+  var kpiOv = kpiRow("overall","All");
+  // Must declare retOvRow FIRST — used below for lmTotalAuth
+  var retOvRow = RET.filter(function(r){return String(r.scope_type||"").toLowerCase()==="overall";})[0]||{};
+  var gsbLmCount = Number(retOvRow.gsb_lm_mx||0);
+
+  // LM bucket counts from MOV prev_bucket (authoritative — MOV de-dups per contact).
+  // Gold/Silver/Bronze/Explorer are accurate; Hunter is corrected using RET.prev_active_mx.
+  var lmTotalAuth = Number(retOvRow.prev_active_mx||0);
+  var movAll = MOV.filter(function(r){return !wh||r.warehouse===wh;});
+  var pCntByB = {Gold:0, Silver:0, Bronze:0, Explorer:0, Hunter:0};
+  movAll.forEach(function(r){
+    var pb=String(r.prev_bucket||"Hunter");
+    if(pCntByB[pb]!==undefined) pCntByB[pb]++;
+  });
+  // Correct Hunter: MOV includes June-only contacts (prev_bucket=Hunter but not in May).
+  if(lmTotalAuth>0){
+    var nonHunterLm = pCntByB.Gold+pCntByB.Silver+pCntByB.Bronze+pCntByB.Explorer;
+    pCntByB.Hunter = Math.max(0, lmTotalAuth - nonHunterLm);
+  }
+  // Fall back to KPI overall row if MOV data is unavailable
+  if(!movAll.length){
+    pCntByB = {
+      Gold:Number(kpiOv.gold||0), Silver:Number(kpiOv.silver||0),
+      Bronze:Number(kpiOv.bronze||0), Explorer:Number(kpiOv.explorer||0),
+      Hunter:Number(kpiOv.hunter||0)
+    };
+  }
+
+  var curGsbGmv = ["Gold","Silver","Bronze"].reduce(function(s,b){return s+(gmvByB[b]||0);},0);
+  var curGsbOrd = ["Gold","Silver","Bronze"].reduce(function(s,b){return s+(ordByB[b]||0);},0);
+  var curGsbAov = curGsbOrd>0?Math.round(curGsbGmv/curGsbOrd):0;
+  var curActive = ["Gold","Silver","Bronze","Explorer"].reduce(function(s,b){return s+(cntByB[b]||0);},0);
+
+  // GSB retention metrics from RET (authoritative)
+  var gsbRetained = Number(retOvRow.gsb_retained_mx||0);
+  var gsbPending  = Number(retOvRow.gsb_pending_mx||0);
+  var totLmActive = Number(retOvRow.prev_active_mx||0);
+  var totRetained = Number(retOvRow.retained_mx||0);
+  var totPending  = Number(retOvRow.pending_retention_mx||0);
+
+  // ── 1. Scorecards: 2 rows ──────────────────────────────────────────────────
+  // Row 1 (k6): GSB-specific
+  document.getElementById("gsb-kpis").innerHTML=
+    kpiHtml("GSB Last Month",           fmt(gsbLmCount),  PREV_MON+" (Gold+Silver+Bronze)","o")+
+    kpiHtml("GSB Active (Retained CM)", fmt(gsbRetained), "LM GSB mx ordering this month","g")+
+    kpiHtml("GSB Pending Activation",   fmt(gsbPending),  "LM GSB not yet ordered CM","r")+
+    kpiHtml("GSB GMV (Current Month)",  fmtL(curGsbGmv),  "Gold+Silver+Bronze GMV","")+
+    kpiHtml("GSB Orders (Current Month)",fmt(curGsbOrd),  "","p")+
+    kpiHtml("GSB AOV (Current Month)",  fmtL(curGsbAov),  "GMV / Orders","t");
+
+  // Row 2 (k6): Overall retention summary + MTD totals
+  var totCmGmv = Number(kpiOv.mtd_gmv||0);
+  var totCmOrd = Number(kpiOv.mtd_orders||0);
+  var totCmAov = totCmOrd>0 ? Math.round(totCmGmv/totCmOrd) : 0;
+  document.getElementById("gsb-kpis2").innerHTML=
+    kpiHtml("Total Active Last Month",  fmt(totLmActive), "Full prev month active","o")+
+    kpiHtml("Retained This Month",      fmt(totRetained), "LM active → ordered CM","g")+
+    kpiHtml("Pending Retention",        fmt(totPending),  "LM active − retained CM","r")+
+    kpiHtml("Total GMV (MTD)",          fmtL(totCmGmv),   "All merchants current month","")+
+    kpiHtml("Total Orders (MTD)",       fmt(totCmOrd),    "Current month orders","p")+
+    kpiHtml("Total AOV (MTD)",          fmtL(totCmAov),   "GMV ÷ Orders","t");
+
+  // ── 2. Charts ──────────────────────────────────────────────────────────────
+  makeCh("c-gsb-pie",{type:"doughnut",data:{labels:BUCKETS,datasets:[{data:BUCKETS.map(function(b){return cntByB[b]||0;}),backgroundColor:BUCKETS.map(function(b){return BCOLORS[b];}),borderWidth:1,borderColor:"#fff"}]},options:{plugins:{legend:{position:"right",labels:{font:{size:10},boxWidth:12}}}}});
+  // FIX: include Hunter in GMV chart
+  makeCh("c-gsb-gmv",{type:"bar",data:{labels:BUCKETS,datasets:[{label:"GMV",data:BUCKETS.map(function(b){return gmvByB[b]||0;}),backgroundColor:BUCKETS.map(function(b){return BCOLORS[b];})}]},options:{plugins:{legend:{display:false}},scales:_scales(fmtL)}});
+  var byMB={};
+  GSB.filter(function(r){return !wh||r.warehouse===wh;}).forEach(function(r){
+    var m=String(r.order_month||"").substring(0,7);
+    if(!byMB[m])byMB[m]={};
+    byMB[m][r.gsb_bucket]=(byMB[m][r.gsb_bucket]||0)+Number(r.merchant_count||0);
+  });
+  var ms=Object.keys(byMB).sort();
+  makeCh("c-gsb-trend",{type:"line",data:{labels:ms,datasets:BUCKETS.map(function(b){return{label:b,data:ms.map(function(m){return(byMB[m]||{})[b]||0;}),borderColor:BCOLORS[b],backgroundColor:BCOLORS[b]+"22",tension:0.3,fill:false,pointRadius:3};})},options:{plugins:{legend:{position:"bottom",labels:{font:{size:10},boxWidth:10}}},scales:_scales()}});
+
+  // ── 3. Monthly bucket summary tables ──────────────────────────────────────
+  function monthTable(byCnt, byGmv, byOrd){
+    var html=tblHead(["Bucket","Total Mx","Total Orders","Total GMV","AOV"]);
+    var tMx=0,tOrd=0,tGmv=0;
+    BUCKETS.forEach(function(b){
+      var mx=byCnt[b]||0, ord=byOrd[b]||0, gmv=byGmv[b]||0;
+      var aov=ord>0?Math.round(gmv/ord):0;
+      tMx+=mx; tOrd+=ord; tGmv+=gmv;
+      html+='<tr><td>'+bucketTag(b)+'</td>'
+        +'<td class="num">'+fmt(mx)+'</td>'
+        +'<td class="num">'+fmt(ord)+'</td>'
+        +'<td class="num">'+fmtL(gmv)+'</td>'
+        +'<td class="num">'+fmtL(aov)+'</td></tr>';
+    });
+    var tAov=tOrd>0?Math.round(tGmv/tOrd):0;
+    html+='<tr style="background:#f0f9ff;font-weight:700"><td>TOTAL</td>'
+      +'<td class="num">'+fmt(tMx)+'</td>'
+      +'<td class="num">'+fmt(tOrd)+'</td>'
+      +'<td class="num">'+fmtL(tGmv)+'</td>'
+      +'<td class="num">'+fmtL(tAov)+'</td></tr>';
+    return html+'</tbody></table>';
+  }
+  document.getElementById("gsb-cur-tbl").innerHTML  = monthTable(cntByB,  gmvByB,  ordByB);
+  // Previous month: use de-duped counts from KPI, orders/GMV from GSB rows
+  document.getElementById("gsb-prev-tbl").innerHTML = monthTable(pCntByB, pGmvByB, pOrdByB);
+
+  // ── 4. Retention cross-table — Prev Bucket → Cur Bucket ──────────────────
+  // CM Active = merchants with cur_order_days > 0 (ordered at least once CM)
+  // This correctly counts Hunter(1-day) merchants unlike just non-Hunter bucket check
+  var movFiltered = MOV.filter(function(r){return !wh||r.warehouse===wh;});
+  var cross={};
+  BUCKETS.forEach(function(b){cross[b]={lm_total:0,cm_active:0};BUCKETS.forEach(function(c){cross[b][c]=0;});});
+  movFiltered.forEach(function(r){
+    var p=String(r.prev_bucket||"Hunter"), c=String(r.cur_bucket||"Hunter");
+    var hasOrders = Number(r.cur_order_days||0) > 0;
+    if(cross[p]){
+      cross[p][c]=(cross[p][c]||0)+1;
+      cross[p].lm_total++;
+      if(hasOrders) cross[p].cm_active=(cross[p].cm_active||0)+1;
+    }
+  });
+  // Correct Hunter lm_total (June-only contacts inflate it via MOV union)
+  if(lmTotalAuth>0){
+    var nonHunterCross=["Gold","Silver","Bronze","Explorer"].reduce(function(s,b){return s+(cross[b].lm_total||0);},0);
+    cross["Hunter"].lm_total = Math.max(0, lmTotalAuth - nonHunterCross);
+  }
+  var tdC='style="text-align:center;vertical-align:middle;padding:6px 8px"';
+  var tdCB='style="text-align:center;vertical-align:middle;padding:6px 8px;background:#f0f9ff"';
+  var html='<table class="tbl"><thead><tr>'
+    +'<th>Prev Month Bucket</th><th '+tdC+'>LM Total</th>'
+    +BUCKETS.map(function(b){return'<th '+tdC+'>→ '+b+'</th>';}).join('')
+    +'<th '+tdC+' style="background:#e0f2fe">CM Active</th></tr></thead><tbody>';
+  BUCKETS.forEach(function(pb){
+    var row=cross[pb]||{};
+    var lmTotal=row.lm_total||0;
+    var cmActive=row.cm_active||0;
+    html+='<tr><td>'+bucketTag(pb)+'</td>'
+      +'<td '+tdCB+'><b>'+fmt(lmTotal)+'</b></td>'
+      +BUCKETS.map(function(cb){
+        var v=row[cb]||0;
+        var pct=lmTotal>0?Math.round(v/lmTotal*100):0;
+        var clr=cb===pb?"#0e9f6e":cb==="Hunter"?"#e02424":"#0f172a";
+        return'<td '+tdC+' style="text-align:center;color:'+clr+'">'
+          +(v>0?'<b>'+fmt(v)+'</b><br><small style="color:#94a3b8">'+pct+'%</small>':'<span style="color:#cbd5e1">—</span>')
+          +'</td>';
+      }).join('')
+      +'<td '+tdC+' style="background:#e0f2fe"><b style="color:#1a56db">'+fmt(cmActive)+'</b></td></tr>';
+  });
+  // Grand totals — use authoritative RET values for LM and CM active
+  var cTot={lm_total:0,cm_active:0};BUCKETS.forEach(function(b){cTot[b]=0;});
+  BUCKETS.forEach(function(pb){
+    BUCKETS.forEach(function(cb){cTot[cb]=(cTot[cb]||0)+(cross[pb][cb]||0);});
+    cTot.lm_total+=(cross[pb].lm_total||0);
+    cTot.cm_active+=(cross[pb].cm_active||0);
+  });
+  var grandLmTotal = lmTotalAuth>0 ? lmTotalAuth : cTot.lm_total;
+  // Use authoritative retained count from RET sheet for grand total CM active
+  var grandCmActive = Number(retOvRow.retained_mx||0) || cTot.cm_active;
+  html+='<tr style="background:#f0f9ff;font-weight:700"><td>TOTAL</td>'
+    +'<td '+tdC+'><b>'+fmt(grandLmTotal)+'</b></td>'
+    +BUCKETS.map(function(b){return'<td '+tdC+'>'+fmt(cTot[b]||0)+'</td>';}).join('')
+    +'<td '+tdC+' style="background:#e0f2fe"><b style="color:#1a56db">'+fmt(grandCmActive)+'</b></td></tr>';
+  html+='</tbody></table>';
+  document.getElementById("gsb-ret-cross").innerHTML=html;
+
+  // ── 5. Salesman Bucket Performance ─────────────────────────────────────────
+  // LM bucket breakdown from MOV (each MOV row has prev_bucket per contact+salesman)
+  var salMov={};
+  MOV.filter(function(r){return !wh||r.warehouse===wh;}).forEach(function(r){
+    var sal=String(r.salesman_name||"").trim();
+    if(!sal)return;
+    if(!salMov[sal])salMov[sal]={Gold:0,Silver:0,Bronze:0,Explorer:0,Hunter:0,lm_total:0,wh:r.warehouse||""};
+    var pb=String(r.prev_bucket||"Hunter");
+    if(salMov[sal][pb]!==undefined) salMov[sal][pb]++;
+    salMov[sal].lm_total++;
+  });
+
+  // KPI salesman rows for current month metrics
+  var salKpiMap={};
+  KPI.filter(function(r){return String(r.scope_type||"").toLowerCase()==="salesman"&&(!wh||r.warehouse===wh);})
+     .forEach(function(r){salKpiMap[String(r.scope||"").trim()]=r;});
+
+  // Merge: all salesmen from MOV + KPI
+  var allSals=Object.keys(salMov).sort(function(a,b){
+    return Number((salKpiMap[b]||{}).gmv||(salKpiMap[b]||{}).mtd_gmv||0)
+          -Number((salKpiMap[a]||{}).gmv||(salKpiMap[a]||{}).mtd_gmv||0);
+  });
+
+  // Search box
+  var salHtml='<div style="padding:0 0 10px 0">'
+    +'<input id="sal-srch" type="text" placeholder="🔍 Search salesman..." '
+    +'style="width:280px;border:1px solid #e2e8f0;border-radius:6px;padding:6px 12px;font-size:12px" '
+    +'oninput="filterSalTable(this.value)"></div>';
+
+  salHtml+=tblHead(["Salesman","Warehouse","Active Mx CM","Orders","GMV","AOV",
+                    "LM Active Mx","LM Gold","LM Silver","LM Bronze","LM Explorer","LM Hunter","LM GSB"]);
+  allSals.forEach(function(sal){
+    var sm=salMov[sal]||{};
+    var kr=salKpiMap[sal]||{};
+    var g=sm.Gold||0, s=sm.Silver||0, b=sm.Bronze||0, e=sm.Explorer||0, h=sm.Hunter||0;
+    var lmGsb=g+s+b, lmTot=sm.lm_total||0;
+    var cmAct=Number(kr.active_merchant||kr.mtd_merchants||0);
+    var ord  =Number(kr.orders||kr.mtd_orders||0);
+    var gmv  =Number(kr.gmv||kr.mtd_gmv||0);
+    var aov  =Number(kr.aov||kr.mtd_aov||0);
+    var whName=kr.warehouse||sm.wh||"";
+    salHtml+='<tr class="sal-row">'
+      +'<td><b>'+sal+'</b></td>'
+      +'<td>'+whName+'</td>'
+      +'<td class="num"><b style="color:#1a56db">'+fmt(cmAct)+'</b></td>'
+      +'<td class="num">'+fmt(ord)+'</td>'
+      +'<td class="num">'+fmtL(gmv)+'</td>'
+      +'<td class="num">'+fmtL(aov)+'</td>'
+      +'<td class="num"><b>'+fmt(lmTot)+'</b></td>'
+      +'<td class="num"><span class="tag tag-Gold">'+g+'</span></td>'
+      +'<td class="num"><span class="tag tag-Silver">'+s+'</span></td>'
+      +'<td class="num"><span class="tag tag-Bronze">'+b+'</span></td>'
+      +'<td class="num"><span class="tag tag-Explorer">'+e+'</span></td>'
+      +'<td class="num"><span class="tag tag-Hunter">'+h+'</span></td>'
+      +'<td class="num"><b style="color:#0e9f6e">'+fmt(lmGsb)+'</b></td>'
+      +'</tr>';
+  });
+  salHtml+='</tbody></table>';
+  document.getElementById("gsb-sal-tbl").innerHTML=salHtml;
+}
+
+function filterSalTable(q){
+  q=q.toLowerCase();
+  var rows=document.querySelectorAll(".sal-row");
+  rows.forEach(function(row){
+    row.style.display=row.textContent.toLowerCase().indexOf(q)>=0?"":"none";
+  });
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// RETENTION TAB
+// Field mapping (new retention_df schema):
+//   prev_active_mx  = LM Active     cur_active_mx   = CM Active
+//   retained_mx     = Retained      pending_retention_mx = Pending
+//   gsb_lm_mx       = GSB LM        gsb_retained_mx = GSB Retained
+//   non_gsb_lm_mx   = Non-GSB LM    non_gsb_retained_mx = Non-GSB Retained
+//   retention_pct / gsb_retention_pct = percentages
+// ════════════════════════════════════════════════════════════════════════════
+function renderRet(){
+  var overall = retRow("overall","All");
+  var wh = CUR_WH;
+
+  // ── Scorecard row 1: Overall retention ────────────────────────────────────
+  document.getElementById("ret-kpis").innerHTML=
+    kpiHtml("Active Last Month",   fmt(overall.prev_active_mx||0),  "Full previous month","o")+
+    kpiHtml("Active Current Month",fmt(overall.cur_active_mx||0),   "Placed ≥1 order","g")+
+    kpiHtml("Retained",            fmt(overall.retained_mx||0),     fmtPct(overall.retention_pct||0)+" retained","g")+
+    kpiHtml("Pending Retention",   fmt(overall.pending_retention_mx||0),"LM active, not yet CM","r");
+  // ── Scorecard row 2: GSB retention ────────────────────────────────────────
+  document.getElementById("ret-kpis2").innerHTML=
+    kpiHtml("GSB Last Month",      fmt(overall.gsb_lm_mx||0),       "Gold+Silver+Bronze","p")+
+    kpiHtml("GSB Retained",        fmt(overall.gsb_retained_mx||0), fmtPct(overall.gsb_retention_pct||0)+" ret%","t")+
+    kpiHtml("GSB Pending",         fmt(overall.gsb_pending_mx||0),  "GSB LM not yet active CM","r")+
+    kpiHtml("Non-GSB Retained",    fmt(overall.non_gsb_retained_mx||0),fmtPct(overall.non_gsb_retention_pct||0)+" ret%","");
+
+  // ── Charts — compute flow stats from MOV ──────────────────────────────────
+  var movFilt = MOV.filter(function(r){return !wh||r.warehouse===wh;});
+  var GSB_BUCKETS = ["Gold","Silver","Bronze"];
+  var retByB={};
+  GSB_BUCKETS.forEach(function(b){
+    var prev = movFilt.filter(function(r){return r.prev_bucket===b;}).length;
+    var ret  = movFilt.filter(function(r){return r.prev_bucket===b&&r.cur_bucket!=="Hunter";}).length;
+    retByB[b] = prev>0?Math.round(ret/prev*100):0;
+  });
+  makeCh("c-ret-bucket",{type:"bar",data:{labels:GSB_BUCKETS,datasets:[{label:"Retention %",data:GSB_BUCKETS.map(function(b){return retByB[b];}),backgroundColor:GSB_BUCKETS.map(function(b){return BCOLORS[b];})}]},options:{plugins:{legend:{display:false}},scales:{x:{ticks:_XTICK},y:{min:0,max:100,ticks:Object.assign({},_YTICK,{callback:function(v){return v+"%";}})}}}});
+
+  // Flow chart from MOV bucket_change
+  var retained  = movFilt.filter(function(r){return r.prev_bucket!=="Hunter"&&r.cur_bucket!=="Hunter";}).length;
+  var churned   = movFilt.filter(function(r){return r.prev_bucket!=="Hunter"&&r.cur_bucket==="Hunter";}).length;
+  var newActive = movFilt.filter(function(r){return r.prev_bucket==="Hunter"&&r.cur_bucket!=="Hunter";}).length;
+  var upgraded  = movFilt.filter(function(r){return r.bucket_change==="upgraded";}).length;
+  var downgraded= movFilt.filter(function(r){return r.bucket_change==="downgraded";}).length;
+  makeCh("c-ret-flow",{type:"doughnut",data:{labels:["Retained","Upgraded","Downgraded","Churned","New Active"],datasets:[{data:[retained,upgraded,downgraded,churned,newActive],backgroundColor:["#0e9f6e","#f59e0b","#f97316","#e02424","#1a56db"],borderWidth:1,borderColor:"#fff"}]},options:{plugins:{legend:{position:"right",labels:{font:{size:10},boxWidth:12}}}}});
+
+  // ── WH retention table (new field names) ──────────────────────────────────
+  var whRet = RET.filter(function(r){
+    return String(r.scope_type||"").toLowerCase()==="warehouse" && (!wh||r.scope===wh||r.warehouse===wh);
+  });
+  var html=tblHead(["Warehouse","LM Active","CM Active","Retained","Ret%","Pending","GSB LM","GSB Ret","GSB Ret%","Non-GSB LM","Non-GSB Ret"]);
+  var tLm=0,tCm=0,tRet=0,tPend=0,tGsbLm=0,tGsbRet=0,tNgLm=0,tNgRet=0;
+  whRet.forEach(function(r){
+    var rp=Number(r.retention_pct||0), gp=Number(r.gsb_retention_pct||0);
+    var lm=Number(r.prev_active_mx||0), cm=Number(r.cur_active_mx||0),
+        ret=Number(r.retained_mx||0), pend=Number(r.pending_retention_mx||0),
+        gLm=Number(r.gsb_lm_mx||0), gRet=Number(r.gsb_retained_mx||0),
+        ngLm=Number(r.non_gsb_lm_mx||0), ngRet=Number(r.non_gsb_retained_mx||0);
+    tLm+=lm; tCm+=cm; tRet+=ret; tPend+=pend;
+    tGsbLm+=gLm; tGsbRet+=gRet; tNgLm+=ngLm; tNgRet+=ngRet;
+    html+='<tr>'
+      +'<td>'+r.scope+'</td>'
+      +'<td class="num">'+fmt(lm)+'</td>'
+      +'<td class="num"><b style="color:#1a56db">'+fmt(cm)+'</b></td>'
+      +'<td class="num">'+fmt(ret)+'</td>'
+      +'<td class="num"><b style="color:'+retColor(rp)+'">'+fmtPct(rp)+'</b></td>'
+      +'<td class="num" style="color:#e02424">'+fmt(pend)+'</td>'
+      +'<td class="num"><b style="color:#0e9f6e">'+fmt(gLm)+'</b></td>'
+      +'<td class="num">'+fmt(gRet)+'</td>'
+      +'<td class="num"><b style="color:'+retColor(gp)+'">'+fmtPct(gp)+'</b></td>'
+      +'<td class="num">'+fmt(ngLm)+'</td>'
+      +'<td class="num">'+fmt(ngRet)+'</td>'
+      +'</tr>';
+  });
+  var tRetPct=tLm>0?Math.round(tRet/tLm*100):0;
+  var tGsbPct=tGsbLm>0?Math.round(tGsbRet/tGsbLm*100):0;
+  html+='<tr style="background:#f0f9ff;font-weight:700"><td>TOTAL</td>'
+    +'<td class="num">'+fmt(tLm)+'</td>'
+    +'<td class="num"><b style="color:#1a56db">'+fmt(tCm)+'</b></td>'
+    +'<td class="num">'+fmt(tRet)+'</td>'
+    +'<td class="num"><b style="color:'+retColor(tRetPct)+'">'+fmtPct(tRetPct)+'</b></td>'
+    +'<td class="num" style="color:#e02424">'+fmt(tPend)+'</td>'
+    +'<td class="num"><b style="color:#0e9f6e">'+fmt(tGsbLm)+'</b></td>'
+    +'<td class="num">'+fmt(tGsbRet)+'</td>'
+    +'<td class="num"><b style="color:'+retColor(tGsbPct)+'">'+fmtPct(tGsbPct)+'</b></td>'
+    +'<td class="num">'+fmt(tNgLm)+'</td>'
+    +'<td class="num">'+fmt(tNgRet)+'</td>'
+    +'</tr>';
+  html+='</tbody></table>';
+  document.getElementById("ret-wh-tbl").innerHTML=html;
+
+  // ── Salesman retention (computed from MOV — RET only has overall+WH scope) ──
+  var salMovRet={};
+  movFilt.forEach(function(r){
+    var sal=String(r.salesman_name||"").trim();
+    if(!sal)return;
+    if(!salMovRet[sal])salMovRet[sal]={lm:0,cm:0,ret:0,gsb_lm:0,gsb_ret:0,wh:r.warehouse||""};
+    if(r.prev_bucket!=="Hunter") salMovRet[sal].lm++;
+    if(r.cur_bucket !=="Hunter") salMovRet[sal].cm++;
+    if(r.prev_bucket!=="Hunter"&&r.cur_bucket!=="Hunter") salMovRet[sal].ret++;
+    if(["Gold","Silver","Bronze"].indexOf(r.prev_bucket)>=0) salMovRet[sal].gsb_lm++;
+    if(["Gold","Silver","Bronze"].indexOf(r.prev_bucket)>=0&&r.cur_bucket!=="Hunter") salMovRet[sal].gsb_ret++;
+  });
+  var salNames=Object.keys(salMovRet).sort(function(a,b){return salMovRet[b].lm-salMovRet[a].lm;});
+  html=tblHead(["Salesman","WH","LM Active","CM Active","Retained","Ret%","GSB LM","GSB Ret","GSB Ret%"]);
+  salNames.forEach(function(sal){
+    var d=salMovRet[sal];
+    var rp=d.lm>0?Math.round(d.ret/d.lm*100):0;
+    var gp=d.gsb_lm>0?Math.round(d.gsb_ret/d.gsb_lm*100):0;
+    html+='<tr><td><b>'+sal+'</b></td><td>'+d.wh+'</td>'
+      +'<td class="num">'+fmt(d.lm)+'</td>'
+      +'<td class="num"><b style="color:#1a56db">'+fmt(d.cm)+'</b></td>'
+      +'<td class="num">'+fmt(d.ret)+'</td>'
+      +'<td class="num"><b style="color:'+retColor(rp)+'">'+fmtPct(rp)+'</b></td>'
+      +'<td class="num">'+fmt(d.gsb_lm)+'</td>'
+      +'<td class="num">'+fmt(d.gsb_ret)+'</td>'
+      +'<td class="num"><b style="color:'+retColor(gp)+'">'+fmtPct(gp)+'</b></td></tr>';
+  });
+  html+='</tbody></table>';
+  document.getElementById("ret-sal-tbl").innerHTML=html;
+
+  // ── Merchant-level bucket change from MOV ──────────────────────────────────
+  var changed = movFilt.filter(function(r){return r.bucket_change!=="same";})
+    .sort(function(a,b){
+      var order={churned:0,downgraded:1,upgraded:2,new_active:3};
+      return (order[a.bucket_change]||4)-(order[b.bucket_change]||4);
+    }).slice(0,50);
+  html=tblHead(["Shop Contact","Salesman","Warehouse","Prev Bucket","Curr Bucket","Change"]);
+  changed.forEach(function(r){
+    var chg=r.bucket_change==="churned"   ?'<span class="tag tr">Churned</span>':
+            r.bucket_change==="downgraded"?'<span class="tag to">Downgraded</span>':
+            r.bucket_change==="upgraded"  ?'<span class="tag tg">Upgraded</span>':
+                                           '<span class="tag tb">New Active</span>';
+    html+='<tr><td>'+r.shop_contact+'</td><td>'+r.salesman_name+'</td><td>'+r.warehouse+'</td>'
+      +'<td>'+bucketTag(r.prev_bucket||"Hunter")+'</td>'
+      +'<td>'+bucketTag(r.cur_bucket||"Hunter")+'</td>'
+      +'<td>'+chg+'</td></tr>';
+  });
+  html+='</tbody></table>';
+  var el=document.getElementById("ret-mov-tbl");if(el)el.innerHTML=html;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// MTD vs LMTD TAB
+// Dashboard_MTD_LMTD schema: row_type, dimension_value, warehouse, order_date,
+//   mtd_gmv, mtd_orders, mtd_merchants, mtd_new_ob, lmtd_gmv, lmtd_orders,
+//   lmtd_merchants, gmv_delta_pct, orders_delta_pct, target_gmv, achievement_pct
+// NOTE: "overall" row_type does not exist — use KPI overall row for scorecard
+// ════════════════════════════════════════════════════════════════════════════
+function renderMtd(){
+  var wh=CUR_WH, sal=CUR_SAL;
+
+  // Scorecard: use KPI overall row (has mtd_gmv/lmtd_gmv/deltas) or filter MTD by scope
+  var scope;
+  if(sal){
+    scope = mtdRows("salesman").filter(function(r){
+      return (r.dimension_value===sal||r.scope===sal);
+    })[0];
+  } else if(wh){
+    scope = mtdRows("warehouse").filter(function(r){
+      return (r.dimension_value===wh||r.scope===wh);
+    })[0];
+  }
+  // Compute overall LMTD by summing WH rows (these are day-trimmed to same period last month)
+  var kpiOv = kpiRow("overall","All");
+  var allWhMtd = wh
+    ? mtdRows("warehouse").filter(function(r){return r.dimension_value===wh||r.warehouse===wh;})
+    : mtdRows("warehouse");
+  var ovMtdGmv   = allWhMtd.reduce(function(s,r){return s+Number(r.mtd_gmv||0);},0)  || Number(kpiOv.mtd_gmv||kpiOv.gmv||0);
+  var ovLmtdGmv  = allWhMtd.reduce(function(s,r){return s+Number(r.lmtd_gmv||0);},0) || Number(kpiOv.lmtd_gmv||0);
+  var ovMtdOrd   = allWhMtd.reduce(function(s,r){return s+Number(r.mtd_orders||0);},0)||Number(kpiOv.mtd_orders||kpiOv.orders||0);
+  var ovLmtdOrd  = allWhMtd.reduce(function(s,r){return s+Number(r.lmtd_orders||0);},0)||Number(kpiOv.lmtd_orders||0);
+  var ovMtdMx    = allWhMtd.reduce(function(s,r){return s+Number(r.mtd_merchants||0);},0)||Number(kpiOv.mtd_merchants||kpiOv.active_merchant||0);
+  var ovLmtdMx   = allWhMtd.reduce(function(s,r){return s+Number(r.lmtd_merchants||0);},0)||Number(kpiOv.lmtd_merchants||0);
+  var ovGmvDelta = ovLmtdGmv>0?Math.round((ovMtdGmv-ovLmtdGmv)/ovLmtdGmv*100):Number(kpiOv.gmv_delta_pct||0);
+  var ovOrdDelta = ovLmtdOrd>0?Math.round((ovMtdOrd-ovLmtdOrd)/ovLmtdOrd*100):Number(kpiOv.orders_delta_pct||0);
+  var ovMxDelta  = ovLmtdMx>0 ?Math.round((ovMtdMx-ovLmtdMx)/ovLmtdMx*100):Number(kpiOv.merchants_delta_pct||0);
+
+  // Fall back to KPI overall row (MTD sheet has no "overall" row_type)
+  if(!scope || !scope.mtd_gmv){
+    scope = {
+      mtd_gmv:             ovMtdGmv,
+      lmtd_gmv:            ovLmtdGmv,
+      gmv_delta_pct:       ovGmvDelta,
+      mtd_orders:          ovMtdOrd,
+      lmtd_orders:         ovLmtdOrd,
+      orders_delta_pct:    ovOrdDelta,
+      mtd_merchants:       ovMtdMx,
+      lmtd_merchants:      ovLmtdMx,
+      merchants_delta_pct: ovMxDelta,
+    };
+  } else {
+    // Even if scope found, replace LMTD with day-trimmed values from WH sum
+    scope.lmtd_gmv       = ovLmtdGmv  || scope.lmtd_gmv;
+    scope.lmtd_orders    = ovLmtdOrd   || scope.lmtd_orders;
+    scope.lmtd_merchants = ovLmtdMx    || scope.lmtd_merchants;
+    scope.gmv_delta_pct  = ovGmvDelta;
+    scope.orders_delta_pct = ovOrdDelta;
+    scope.merchants_delta_pct = ovMxDelta;
+  }
+
+  // Scorecards: MTD | LMTD pairs with delta as subtitle
+  function mtdCard(label, mtdV, lmtdV, dPct, cls){
+    var dColor=Number(dPct||0)>=0?'#0e9f6e':'#e02424';
+    return '<div class="kpi'+(cls?' '+cls:'')+'"><div class="kpi-lbl">'+label+'</div>'
+      +'<div class="kpi-val">'+mtdV+'</div>'
+      +'<div class="kpi-sub">LMTD (day '+new Date().getDate()+'): '+lmtdV
+      +(dPct!==undefined?' &nbsp;<b style="color:'+dColor+'">'+delta(dPct||0)+'</b>':'')
+      +'</div></div>';
+  }
+  document.getElementById("mtd-kpis").innerHTML=
+    mtdCard("MTD GMV",      fmtL(scope.mtd_gmv||0),      fmtL(scope.lmtd_gmv||0),      scope.gmv_delta_pct,    "g")+
+    mtdCard("MTD Orders",   fmt(scope.mtd_orders||0),     fmt(scope.lmtd_orders||0),     scope.orders_delta_pct, "g")+
+    mtdCard("MTD Active Mx",fmt(scope.mtd_merchants||0),  fmt(scope.lmtd_merchants||0),  scope.merchants_delta_pct,"t")+
+    kpiHtml("GMV Δ% vs LMTD",   delta(scope.gmv_delta_pct||0),    "Same day last month",Number(scope.gmv_delta_pct||0)>=0?"g":"r")+
+    kpiHtml("Orders Δ% vs LMTD",delta(scope.orders_delta_pct||0), "Same day last month",Number(scope.orders_delta_pct||0)>=0?"g":"r")+
+    kpiHtml("Mx Δ% vs LMTD",    delta(scope.merchants_delta_pct||0),"Same day last month",Number(scope.merchants_delta_pct||0)>=0?"g":"r");
+
+  // WH table — add LMTD mx, delta mx, lost mx, new mx; column totals; no New OB
+  var whRows = mtdRows("warehouse").filter(function(r){return !wh||(r.dimension_value===wh||r.warehouse===wh);});
+  // Also pull KPI warehouse rows for lost/new mx
+  var kpiWhMap={};
+  KPI.filter(function(r){return String(r.scope_type||"").toLowerCase()==="warehouse";})
+     .forEach(function(r){kpiWhMap[r.warehouse||r.scope||""]=r;});
+  var html=tblHead(["Warehouse","MTD GMV","LMTD GMV","GMV Δ%","MTD Ord","LMTD Ord","Ord Δ%","MTD Mx","LMTD Mx","Mx Δ%","Lost Mx","New Mx"]);
+  var ttGmv=0,ttLGmv=0,ttOrd=0,ttLOrd=0,ttMx=0,ttLMx=0,ttLost=0,ttNew=0;
+  whRows.forEach(function(r){
+    var name=r.dimension_value||r.warehouse||r.scope||"?";
+    var kpiR=kpiWhMap[name]||{};
+    var mtdMx =Number(r.mtd_merchants||0);
+    var lmtdMx=Number(r.lmtd_merchants||0);
+    var mxDelta=lmtdMx>0?Math.round((mtdMx-lmtdMx)/lmtdMx*100):0;
+    // Lost = LM active minus retained; New = CM active minus retained
+    var lmActive=Number(kpiR.total_mx_lm||0);
+    var retained=Number(kpiR.retention_merchant||0);
+    var lostMx=lmActive>0?Math.max(0,lmActive-retained):0;
+    var newMx =mtdMx>0?Math.max(0,mtdMx-retained):0;
+    var mtdG=Number(r.mtd_gmv||0), lmtdG=Number(r.lmtd_gmv||0);
+    var mtdO=Number(r.mtd_orders||0), lmtdO=Number(r.lmtd_orders||0);
+    ttGmv+=mtdG; ttLGmv+=lmtdG; ttOrd+=mtdO; ttLOrd+=lmtdO;
+    ttMx+=mtdMx; ttLMx+=lmtdMx; ttLost+=lostMx; ttNew+=newMx;
+    html+='<tr><td><b>'+name+'</b></td>'
+      +'<td class="num">'+fmtL(mtdG)+'</td><td class="num">'+fmtL(lmtdG)+'</td>'
+      +'<td class="num">'+delta(r.gmv_delta_pct||0)+'</td>'
+      +'<td class="num">'+fmt(mtdO)+'</td><td class="num">'+fmt(lmtdO)+'</td>'
+      +'<td class="num">'+delta(r.orders_delta_pct||0)+'</td>'
+      +'<td class="num"><b style="color:#1a56db">'+fmt(mtdMx)+'</b></td>'
+      +'<td class="num">'+fmt(lmtdMx)+'</td>'
+      +'<td class="num">'+delta(mxDelta)+'</td>'
+      +'<td class="num" style="color:#e02424">'+fmt(lostMx)+'</td>'
+      +'<td class="num" style="color:#0e9f6e">'+fmt(newMx)+'</td>'
+      +'</tr>';
+  });
+  var ttMxD=ttLMx>0?Math.round((ttMx-ttLMx)/ttLMx*100):0;
+  var ttGD=ttLGmv>0?Math.round((ttGmv-ttLGmv)/ttLGmv*100):0;
+  var ttOD=ttLOrd>0?Math.round((ttOrd-ttLOrd)/ttLOrd*100):0;
+  html+='<tr style="background:#f0f9ff;font-weight:700"><td>TOTAL</td>'
+    +'<td class="num">'+fmtL(ttGmv)+'</td><td class="num">'+fmtL(ttLGmv)+'</td>'
+    +'<td class="num">'+delta(ttGD)+'</td>'
+    +'<td class="num">'+fmt(ttOrd)+'</td><td class="num">'+fmt(ttLOrd)+'</td>'
+    +'<td class="num">'+delta(ttOD)+'</td>'
+    +'<td class="num"><b style="color:#1a56db">'+fmt(ttMx)+'</b></td>'
+    +'<td class="num">'+fmt(ttLMx)+'</td>'
+    +'<td class="num">'+delta(ttMxD)+'</td>'
+    +'<td class="num" style="color:#e02424">'+fmt(ttLost)+'</td>'
+    +'<td class="num" style="color:#0e9f6e">'+fmt(ttNew)+'</td>'
+    +'</tr>';
+  html+='</tbody></table>';
+  document.getElementById("mtd-wh-tbl").innerHTML=html;
+
+  // Salesman table
+  var salRows = mtdRows("salesman").filter(function(r){
+    return (!wh||(r.warehouse===wh||r.dimension_value===wh))&&(!sal||(r.dimension_value===sal||r.scope===sal));
+  });
+  html=tblHead(["Salesman","WH","MTD GMV","LMTD GMV","GMV Δ%","MTD Ord","LMTD Ord","Target GMV","Ach%"]);
+  salRows.forEach(function(r){
+    var name=r.dimension_value||r.scope||"?";
+    var tgt=Number(r.target_gmv||0), act=Number(r.mtd_gmv||0);
+    var ap=tgt>0?Math.round(act/tgt*100):0;
+    html+='<tr><td><b>'+name+'</b></td><td>'+r.warehouse+'</td>'
+      +'<td class="num">'+fmtL(act)+'</td>'
+      +'<td class="num">'+fmtL(r.lmtd_gmv||0)+'</td>'
+      +'<td class="num">'+delta(r.gmv_delta_pct||0)+'</td>'
+      +'<td class="num">'+fmt(r.mtd_orders||0)+'</td>'
+      +'<td class="num">'+fmt(r.lmtd_orders||0)+'</td>'
+      +'<td class="num">'+fmtL(tgt)+'</td>'
+      +'<td class="num"><b style="color:'+achColor(ap)+'">'+ap+'%</b></td></tr>';
+  });
+  html+='</tbody></table>';
+  document.getElementById("mtd-sal-tbl").innerHTML=html;
+
+  // Warehouse Target Achievement — TGT sheet has actuals + targets; MTD sheet provides LMTD
+  var mtdWhMap={};
+  whRows.forEach(function(r){var n=r.dimension_value||r.warehouse||"";mtdWhMap[n]=r;});
+  var tgtAch=function(a,t){return t>0?Math.round(Number(a||0)/Number(t||1)*100):0;};
+  var tgtRows = TGT.filter(function(r){return !wh||r.warehouse===wh;});
+  html=tblHead(["Warehouse",
+    "Target GMV","Actual GMV","GMV Ach%","LMTD GMV",
+    "Target Orders","Actual Orders","Ord Ach%","LMTD Orders",
+    "Target Active Mx","Actual Active Mx","Mx Ach%",
+    "Target AOV","Actual AOV","AOV Ach%"]);
+  tgtRows.forEach(function(r){
+    var wName=r.warehouse||"?";
+    var mtdR=mtdWhMap[wName]||{};
+    var ap=tgtAch;
+    var gp=ap(r.actual_gmv||0, r.target_gmv||0);
+    var op=ap(r.actual_orders||0, r.target_orders||0);
+    var mp=ap(r.actual_active_mx||0, r.target_active_mx||0);
+    var aoVp=ap(r.actual_aov||0, r.target_aov||0);
+    html+='<tr><td><b>'+wName+'</b></td>'
+      +'<td class="num">'+fmtL(r.target_gmv||0)+'</td>'
+      +'<td class="num"><b>'+fmtL(r.actual_gmv||0)+'</b></td>'
+      +'<td class="num"><b style="color:'+achColor(gp)+'">'+gp+'%</b></td>'
+      +'<td class="num" style="color:#64748b">'+fmtL(mtdR.lmtd_gmv||0)+'</td>'
+      +'<td class="num">'+fmt(r.target_orders||0)+'</td>'
+      +'<td class="num"><b>'+fmt(r.actual_orders||0)+'</b></td>'
+      +'<td class="num"><b style="color:'+achColor(op)+'">'+op+'%</b></td>'
+      +'<td class="num" style="color:#64748b">'+fmt(mtdR.lmtd_orders||0)+'</td>'
+      +'<td class="num">'+fmt(r.target_active_mx||0)+'</td>'
+      +'<td class="num"><b>'+fmt(r.actual_active_mx||0)+'</b></td>'
+      +'<td class="num"><b style="color:'+achColor(mp)+'">'+mp+'%</b></td>'
+      +'<td class="num">'+fmtL(r.target_aov||0)+'</td>'
+      +'<td class="num"><b>'+fmtL(r.actual_aov||0)+'</b></td>'
+      +'<td class="num"><b style="color:'+achColor(aoVp)+'">'+aoVp+'%</b></td>'
+      +'</tr>';
+  });
+  html+='</tbody></table>';
+  var el=document.getElementById("mtd-target-tbl");if(el)el.innerHTML=html;
+
+  // ── Charts (all from daily rows) ──────────────────────────────────────────
+  var dailyRows=mtdRows("daily").filter(function(r){return !wh||r.warehouse===wh||!r.warehouse;})
+    .sort(function(a,b){return String(a.order_date||a.dimension_value||"").localeCompare(String(b.order_date||b.dimension_value||""));});
+  var dLabels=dailyRows.map(function(r){
+    var d=String(r.order_date||r.dimension_value||"");
+    return d.length>=10?d.slice(5,10):d; // show MM-DD
+  });
+  var dMtdGmv  =dailyRows.map(function(r){return Number(r.mtd_gmv||0);});
+  var dLmtdGmv =dailyRows.map(function(r){return Number(r.lmtd_gmv||0);});
+  var dMtdOrd  =dailyRows.map(function(r){return Number(r.mtd_orders||0);});
+  var dLmtdOrd =dailyRows.map(function(r){return Number(r.lmtd_orders||0);});
+  var dNewOb   =dailyRows.map(function(r){return Number(r.mtd_new_ob||0);});
+  var dAov     =dailyRows.map(function(r){
+    var o=Number(r.mtd_orders||0), g=Number(r.mtd_gmv||0);
+    return o>0?Math.round(g/o):0;
+  });
+  var lOpts={tension:0.3,fill:false,pointRadius:2};
+
+  // Daily GMV MTD vs LMTD
+  makeCh("c-daily-gmv",{type:"line",data:{labels:dLabels,datasets:[
+    Object.assign({label:"MTD GMV",data:dMtdGmv,borderColor:"#1a56db",backgroundColor:"#1a56db22"},lOpts),
+    Object.assign({label:"LMTD GMV",data:dLmtdGmv,borderColor:"#94a3b8",backgroundColor:"transparent",borderDash:[4,2]},lOpts)
+  ]},options:{plugins:{legend:{position:"bottom",labels:{font:{size:10},boxWidth:10}}},scales:_scales(fmtL)}});
+
+  // Target vs GMV by Warehouse (bar chart)
+  var whRowsForChart=mtdRows("warehouse").filter(function(r){return !wh||r.dimension_value===wh||r.warehouse===wh;});
+  var whNames=whRowsForChart.map(function(r){return (r.dimension_value||r.warehouse||"").substring(0,15);});
+  var whActGmv=whRowsForChart.map(function(r){return Number(r.mtd_gmv||0);});
+  var whTgtGmv=whRowsForChart.map(function(r){return Number(r.target_gmv||0);});
+  makeCh("c-target",{type:"bar",data:{labels:whNames,datasets:[
+    {label:"Actual GMV",  data:whActGmv,backgroundColor:"#1a56db88"},
+    {label:"Target GMV",  data:whTgtGmv,backgroundColor:"#e2e8f0",borderColor:"#94a3b8",borderWidth:1}
+  ]},options:{plugins:{legend:{position:"bottom",labels:{font:{size:10},boxWidth:10}}},scales:_scales(fmtL)}});
+
+  // New OB per day
+  makeCh("c-new-merch",{type:"bar",data:{labels:dLabels,datasets:[
+    {label:"New OB",data:dNewOb,backgroundColor:"#0e9f6e88"}
+  ]},options:{plugins:{legend:{display:false}},scales:_scales()}});
+
+  // Orders per day MTD vs LMTD
+  makeCh("c-daily-ord",{type:"line",data:{labels:dLabels,datasets:[
+    Object.assign({label:"MTD Orders",data:dMtdOrd,borderColor:"#7e3af2",backgroundColor:"#7e3af222"},lOpts),
+    Object.assign({label:"LMTD Orders",data:dLmtdOrd,borderColor:"#94a3b8",backgroundColor:"transparent",borderDash:[4,2]},lOpts)
+  ]},options:{plugins:{legend:{position:"bottom",labels:{font:{size:10},boxWidth:10}}},scales:_scales()}});
+
+  // AOV trend
+  makeCh("c-aov",{type:"line",data:{labels:dLabels,datasets:[
+    Object.assign({label:"AOV",data:dAov,borderColor:"#f59e0b",backgroundColor:"#f59e0b22"},lOpts)
+  ]},options:{plugins:{legend:{display:false}},scales:_scales(fmtL)}});
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// BEAT PERFORMANCE TAB
+// Dashboard_Beat schema (new):
+//   Beat adherence: beat_planned_mx, beat_visited_mx, beat_ordered_mx,
+//                   beat_gmv, beat_adherence_pct, beat_conversion_pct
+//   Visit metrics:  total_visits, unique_visited_mx, ordered_after_visit,
+//                   visit_conversion_pct
+// ════════════════════════════════════════════════════════════════════════════
+function renderBeat(){
+  var wh=CUR_WH;
+  var overall=beatRows("overall")[0]||{};
+
+  // Recalculate adherence from raw counts (ETL-computed pct can exceed 100% due to repeat visits)
+  var _bPlan = Number(overall.beat_planned_mx||0);
+  var _bVis  = Number(overall.beat_visited_mx||0);
+  var _bOrd  = Number(overall.ordered_after_visit||overall.beat_ordered_mx||0);
+  var _bAdh  = _bPlan>0 ? Math.min(100, Math.round(_bVis/_bPlan*100)) : 0;
+  var _bConv = _bVis>0  ? Math.min(100, Math.round(_bOrd/_bVis*100))  : 0;
+  document.getElementById("beat-kpis").innerHTML=
+    kpiHtml("Beat Merchants",      fmt(_bPlan),  "Total in beat plan","p")+
+    kpiHtml("Beat Shops Visited",  fmt(_bVis),   "Unique beat shops visited","g")+
+    kpiHtml("Beat Adherence",      fmtPct(_bAdh),"Beat visited / planned","t")+
+    kpiHtml("Ordered After Visit", fmt(_bOrd),   "Placed order post-visit","o")+
+    kpiHtml("Visit → Order Conv",  fmtPct(_bConv),"Ordered / beat visited","p")+
+    kpiHtml("Total Visits",        fmt(overall.total_visits||0),"All visit events (incl. repeat)","");
+
+  // WH table
+  var whB=beatRows("warehouse").filter(function(r){return !wh||r.scope===wh||r.warehouse===wh;});
+  var html=tblHead(["Warehouse","Beat Planned","Beat Visited","Adherence%","Total Visits","Unique Visited","Ordered","Visit Conv%"]);
+  whB.forEach(function(r){
+    var bp=Number(r.beat_planned_mx||0), bv=Number(r.beat_visited_mx||0);
+    var bo=Number(r.ordered_after_visit||r.beat_ordered_mx||0);
+    var ap=bp>0?Math.min(100,Math.round(bv/bp*100)):0;
+    var vc=bv>0?Math.min(100,Math.round(bo/bv*100)):0;
+    html+='<tr><td><b>'+r.scope+'</b></td>'
+      +'<td class="num">'+fmt(bp)+'</td>'
+      +'<td class="num">'+fmt(bv)+'</td>'
+      +'<td class="num"><b style="color:'+retColor(ap)+'">'+fmtPct(ap)+'</b></td>'
+      +'<td class="num">'+fmt(r.total_visits||0)+'</td>'
+      +'<td class="num">'+fmt(r.unique_visited_mx||0)+'</td>'
+      +'<td class="num">'+fmt(bo)+'</td>'
+      +'<td class="num"><b style="color:'+achColor(vc)+'">'+fmtPct(vc)+'</b></td></tr>';
+  });
+  html+='</tbody></table>';
+  var bWH=document.getElementById("beat-wh-tbl");if(bWH)bWH.innerHTML=html;
+
+  // WH Summary — add totals row
+  var ttBPlan=0,ttBVis=0,ttTotV=0,ttUniV=0,ttOrdV=0;
+  whB.forEach(function(r){
+    ttBPlan+=Number(r.beat_planned_mx||0); ttBVis+=Number(r.beat_visited_mx||0);
+    ttTotV+=Number(r.total_visits||0); ttUniV+=Number(r.unique_visited_mx||0);
+    ttOrdV+=Number(r.ordered_after_visit||0);
+  });
+  var ttAdh=ttBPlan>0?Math.min(100,Math.round(ttBVis/ttBPlan*100)):0;
+  var ttVc=ttBVis>0?Math.min(100,Math.round(ttOrdV/ttBVis*100)):0;
+  if(bWH){
+    var tbl=bWH.querySelector("table");
+    if(tbl){
+      var tbody=tbl.querySelector("tbody");
+      if(tbody){
+        var tot=document.createElement("tr");
+        tot.style.cssText="background:#f0f9ff;font-weight:700";
+        tot.innerHTML='<td>TOTAL</td>'
+          +'<td class="num">'+fmt(ttBPlan)+'</td>'
+          +'<td class="num">'+fmt(ttBVis)+'</td>'
+          +'<td class="num"><b style="color:'+retColor(ttAdh)+'">'+fmtPct(ttAdh)+'</b></td>'
+          +'<td class="num">'+fmt(ttTotV)+'</td>'
+          +'<td class="num">'+fmt(ttUniV)+'</td>'
+          +'<td class="num">'+fmt(ttOrdV)+'</td>'
+          +'<td class="num"><b style="color:'+achColor(ttVc)+'">'+fmtPct(ttVc)+'</b></td>';
+        tbody.appendChild(tot);
+      }
+    }
+  }
+
+  // Conversion by Merchant Type chart — use warehouse breakdown as fallback if no merchant_type rows
+  var mtRows=beatRows("merchant_type").filter(function(r){return !wh||r.warehouse===wh;});
+  if(!mtRows.length){
+    // Fallback: use warehouse rows as "merchant types" for the chart
+    mtRows=beatRows("warehouse").filter(function(r){return !wh||r.scope===wh||r.warehouse===wh;});
+  }
+  try {
+    if(mtRows.length){
+      var mtLabels=mtRows.map(function(r){return (r.scope||r.warehouse||"?").substring(0,18);});
+      var mtAdh=mtRows.map(function(r){return Number(r.beat_adherence_pct||0);});
+      var mtConv=mtRows.map(function(r){return Number(r.visit_conversion_pct||0);});
+      makeCh("c-beat-type",{type:"bar",data:{labels:mtLabels,datasets:[
+        {label:"Beat Adherence %",data:mtAdh,backgroundColor:"#1a56db88"},
+        {label:"Visit Conv %",    data:mtConv,backgroundColor:"#0e9f6e88"}
+      ]},options:{plugins:{legend:{position:"bottom",labels:{font:{size:10},boxWidth:10}}},
+        scales:{x:{ticks:Object.assign({},_XTICK,{maxRotation:30})},
+                y:{min:0,max:100,ticks:Object.assign({},_YTICK,{callback:function(v){return v+"%";}})}}
+      }});
+    }
+  } catch(e){ console.warn("Beat type chart:",e); }
+
+  // SR Visit Rate Top 15 (horizontal bar chart)
+  var srTop15=beatRows("salesman").filter(function(r){return !wh||r.warehouse===wh;})
+    .sort(function(a,b){return Number(b.beat_adherence_pct||0)-Number(a.beat_adherence_pct||0)}).slice(0,15);
+  try {
+    if(srTop15.length){
+      makeCh("c-beat-sr",{type:"bar",data:{
+        labels:srTop15.map(function(r){return (r.scope||"").substring(0,15);}),
+        datasets:[
+          {label:"Beat Adherence %",data:srTop15.map(function(r){return Number(r.beat_adherence_pct||0);}),backgroundColor:"#1a56db88"},
+          {label:"Visit Conv %",    data:srTop15.map(function(r){return Number(r.visit_conversion_pct||0);}),backgroundColor:"#0e9f6e88"}
+        ]
+      },options:{indexAxis:"y",plugins:{legend:{position:"bottom",labels:{font:{size:10},boxWidth:10}}},
+        scales:{x:{min:0,max:100,ticks:Object.assign({},_XTICK,{callback:function(v){return v+"%";}})},y:{ticks:_YTICK}}}
+      });
+    }
+  } catch(e){ console.warn("Beat SR chart:",e); }
+
+  // SR Beat Leaderboard — visit_conversion_pct is ordered_after_visit / unique_visited_mx
+  var srB=beatRows("salesman").filter(function(r){return !wh||r.warehouse===wh;})
+    .sort(function(a,b){return Number(b.beat_adherence_pct||0)-Number(a.beat_adherence_pct||0)}).slice(0,30);
+  html=tblHead(["#","Salesman","WH","Beat Planned","Beat Visited","Adherence%","Unique Visited","Ordered After Visit","Visit Conv%"]);
+  srB.forEach(function(r,i){
+    var ap=Number(r.beat_adherence_pct||0);
+    var uv=Number(r.unique_visited_mx||0);
+    var ov=Number(r.ordered_after_visit||0);
+    var vc=uv>0?Math.round(ov/uv*100):Number(r.visit_conversion_pct||0);
+    html+='<tr><td class="ctr">'+(i+1)+'</td><td><b>'+r.scope+'</b></td><td>'+r.warehouse+'</td>'
+      +'<td class="num">'+fmt(r.beat_planned_mx||0)+'</td>'
+      +'<td class="num">'+fmt(r.beat_visited_mx||0)+'</td>'
+      +'<td class="num"><b style="color:'+retColor(ap)+'">'+fmtPct(ap)+'</b></td>'
+      +'<td class="num">'+fmt(uv)+'</td>'
+      +'<td class="num">'+fmt(ov)+'</td>'
+      +'<td class="num"><b style="color:'+achColor(vc)+'">'+fmtPct(vc)+'</b></td></tr>';
+  });
+  html+='</tbody></table>';
+  var bSR=document.getElementById("beat-sr-tbl");if(bSR)bSR.innerHTML=html;
+
+  // Funnel — using new field names
+  var fEl=document.getElementById("beat-funnel");
+  if(fEl){
+    var tb=Number(overall.beat_planned_mx||0)||1;
+    var bv=Number(overall.beat_visited_mx||0);
+    var sv=Number(overall.unique_visited_mx||0);
+    var om=Number(overall.ordered_after_visit||overall.beat_ordered_mx||0);
+    // Cap all % at 100% — beat_adherence can exceed 100% if repeat visits counted as beat_visited
+    var adhPct = Math.min(100, tb?bv/tb*100:0);
+    var ordPct = Math.min(100, bv?om/bv*100:0);
+    fEl.innerHTML='<div style="display:flex;gap:12px;flex-wrap:wrap;padding:4px 0">'
+      +_fBar("Beat Planned",   fmt(tb), "100%",              "#1a56db")
+      +_fBar("Beat Visited",   fmt(bv), fmtPct(adhPct),      "#0694a2")
+      +_fBar("Ordered",        fmt(om), fmtPct(ordPct),      "#0e9f6e")
+      +_fBar("Total Visits",   fmt(Number(overall.total_visits||0)), "incl. repeat visits", "#f59e0b")
+      +'</div>';
+  }
+}
+function _fBar(label,val,pct,col){
+  return '<div style="flex:1;min-width:100px;background:#fff;border-radius:8px;padding:10px 14px;box-shadow:0 1px 3px rgba(0,0,0,.07)">'
+    +'<div style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase">'+label+'</div>'
+    +'<div style="font-size:20px;font-weight:800;color:#0f172a;margin:2px 0">'+val+'</div>'
+    +'<div style="font-size:11px;color:'+col+';font-weight:700">'+pct+'</div>'
+    +'<div style="background:#e2e8f0;border-radius:3px;height:4px;margin-top:6px">'
+    +'<div style="width:'+pct+';background:'+col+';height:100%;border-radius:3px"></div></div></div>';
+}
+
+/* ============================================================
+   DATA LOADING — Google Sheets API v4 (no server required)
+   Reads all 8 Dashboard_* tabs in parallel via fetch().
+   The sheet must be shared "Anyone with the link can view".
+   ============================================================ */
+
+function setLoading(msg){
+  var el=document.getElementById("loading");
+  if(el)el.innerHTML='<div style="text-align:center">'
+    +'<div style="font-size:18px;margin-bottom:8px">⏳ Loading…</div>'
+    +'<div style="color:#64748b;font-size:13px">'+msg+'</div></div>';
+}
+
+// Convert Sheets API response {values:[[headers],[row],...]} → array of objects
+function sheetToRows(values){
+  if(!values||values.length<2)return[];
+  var headers=values[0].map(function(h){return String(h).trim().toLowerCase().replace(/[\s\-]+/g,"_");});
+  return values.slice(1).map(function(row){
+    var obj={};
+    headers.forEach(function(h,i){obj[h]=row[i]!==undefined?row[i]:"";});
+    return obj;
+  });
+}
+
+// Fetch a single sheet tab via Google Visualization API (no API key required).
+// Sheet must be shared: "Anyone with the link → Viewer"
+function fetchSheet(tabName){
+  var url="https://docs.google.com/spreadsheets/d/"+SHEET_ID
+         +"/gviz/tq?tqx=out:json&sheet="+encodeURIComponent(tabName);
+  return fetch(url)
+    .then(function(r){
+      if(!r.ok)throw new Error(tabName+" HTTP "+r.status);
+      return r.text();
+    })
+    .then(function(text){
+      // gviz wraps response in: /*O_o*/\ngoogle.visualization.Query.setResponse({...});
+      var match=text.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)\s*;?\s*$/);
+      if(!match)throw new Error(tabName+": unexpected gviz format");
+      var data=JSON.parse(match[1]);
+      if(!data.table)return[];
+      // Normalise column labels exactly as Code.gs does
+      var cols=data.table.cols.map(function(c){
+        return String(c.label||c.id||"").trim().toLowerCase().replace(/[\s\-]+/g,"_");
+      });
+      return(data.table.rows||[]).map(function(row){
+        var obj={};
+        (row.c||[]).forEach(function(cell,i){
+          if(i<cols.length&&cols[i]){
+            var v=(cell&&cell.v!==null&&cell.v!==undefined)?cell.v:"";
+            // gviz returns dates as "Date(yyyy,m,d)" strings — convert to YYYY-MM-DD
+            if(typeof v==="string"&&v.indexOf("Date(")===0){
+              var p=v.slice(5,-1).split(",").map(Number);
+              v=p[0]+"-"+String(p[1]+1).padStart(2,"0")+"-"+String(p[2]).padStart(2,"0");
+            }
+            obj[cols[i]]=v;
+          }
+        });
+        return obj;
+      });
+    });
+}
+
+function init(){
+  var now=new Date();
+  document.getElementById("hdr-date").textContent=now.toLocaleDateString("en-IN",{weekday:"short",year:"numeric",month:"short",day:"numeric"});
+
+  if(!SHEET_ID){
+    setLoading("⚠️ Set SHEET_ID in dashboard.html.");
+    return;
+  }
+
+  setLoading("Fetching KPI data…");
+
+  // Stage 1 — KPI + Target (fast, shown immediately)
+  Promise.all([
+    fetchSheet("Dashboard_KPI"),
+    fetchSheet("Dashboard_Target"),
+    fetchSheet("_control"),
+  ]).then(function(results){
+    KPI=results[0]; TGT=results[1];
+    var ctrl=results[2][0]||{};
+    P.refreshedAt=ctrl.last_refreshed_at||"";
+    // Derive current/prev month from KPI data (columns: cur_month, prev_month)
+    var months=[];
+    KPI.forEach(function(r){
+      var cm=String(r.cur_month||r.order_month||"").substring(0,7);
+      var pm=String(r.prev_month||"").substring(0,7);
+      if(cm&&months.indexOf(cm)<0)months.push(cm);
+      if(pm&&months.indexOf(pm)<0)months.push(pm);
+    });
+    // fallback: use current + previous calendar month
+    if(!months.length){
+      var d=new Date();
+      var cy=d.getFullYear(), cm2=d.getMonth()+1;
+      var py=cm2===1?cy-1:cy, pm2=cm2===1?12:cm2-1;
+      months=[py+"-"+String(pm2).padStart(2,"0"), cy+"-"+String(cm2).padStart(2,"0")];
+    }
+    months.sort();
+    CUR_MON  = months[months.length-1]||"";
+    PREV_MON = months[months.length-2]||"";
+    _showApp();
+    renderWh();
+    document.getElementById("hdr-refresh").textContent=P.refreshedAt?"Updated: "+P.refreshedAt:"";
+    setLoading("Loading remaining tabs…");
+
+    // Stage 2 — MTD + Beat (in parallel)
+    Promise.all([
+      fetchSheet("Dashboard_MTD_LMTD"),
+      fetchSheet("Dashboard_Beat"),
+    ]).then(function(r2){
+      MTD=r2[0]; BEAT=r2[1];
+      // Re-render WH tab to update LMTD with day-trimmed values from MTD sheet
+      if(activeTab==="wh")renderWh();
+      if(activeTab==="mtd")renderMtd();
+      if(activeTab==="beat")renderBeat();
+    }).catch(function(e){console.warn("Stage 2 failed:",e);});
+
+    // Stage 3 — GSB + Movement + Retention (in parallel)
+    Promise.all([
+      fetchSheet("Dashboard_GSB"),
+      fetchSheet("Dashboard_GSB_Movement"),
+      fetchSheet("Dashboard_Retention"),
+    ]).then(function(r3){
+      GSB=r3[0]; MOV=r3[1]; RET=r3[2];
+      // Refresh CUR_MON/PREV_MON from GSB order_month (most reliable source)
+      var gMonths=[];
+      GSB.forEach(function(r){
+        var m=String(r.order_month||"").substring(0,7);
+        if(m&&gMonths.indexOf(m)<0)gMonths.push(m);
+      });
+      if(gMonths.length>=1){
+        gMonths.sort();
+        CUR_MON  = gMonths[gMonths.length-1]||CUR_MON;
+        PREV_MON = gMonths[gMonths.length-2]||PREV_MON;
+      }
+      if(activeTab==="gsb")renderGsb();
+      if(activeTab==="ret")renderRet();
+    }).catch(function(e){console.warn("Stage 3 failed:",e);});
+
+  }).catch(function(err){
+    setLoading("❌ Failed to load: "+err.message
+      +"<br><small>Check API key, sheet is public, and Sheets API is enabled.</small>");
+    console.error(err);
+  });
+}
+
+function _showApp(){
+  populateFilters();
+  document.getElementById("loading").style.display="none";
+  document.getElementById("app").style.display="block";
+  document.querySelectorAll(".sec").forEach(function(s){s.classList.remove("active");});
+  document.getElementById("sec-wh").classList.add("active");
+  document.querySelectorAll(".tab").forEach(function(t){t.classList.remove("active");});
+  document.querySelector(".tab").classList.add("active");
+  activeTab="wh";
+}
+
+function applyFilter(){
+  CUR_WH=document.getElementById("fWarehouse").value;
+  CUR_SAL=document.getElementById("fSalesman").value;
+  renderActive();
+}
+
+window.onload=init;
+</script>
+</body>
+</html>
