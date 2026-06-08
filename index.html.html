@@ -1276,38 +1276,83 @@ function renderMtd(){
   document.getElementById("mtd-sal-tbl").innerHTML=html;
 
   // Warehouse Target Achievement — TGT sheet has actuals + targets; MTD sheet provides LMTD
+  // Build case-insensitive LMTD lookup from MTD warehouse rows
   var mtdWhMap={};
-  whRows.forEach(function(r){var n=r.dimension_value||r.warehouse||"";mtdWhMap[n]=r;});
+  whRows.forEach(function(r){
+    var n=(r.dimension_value||r.warehouse||"").toLowerCase().trim();
+    if(n) mtdWhMap[n]=r;
+  });
+  function _mtdLookup(name){
+    var k=(name||"").toLowerCase().trim();
+    return mtdWhMap[k]||{};
+  }
+  // Build KPI warehouse lookup for fallback actuals
+  var kpiWhForTgt={};
+  KPI.filter(function(r){return String(r.scope_type||"").toLowerCase()==="warehouse";})
+     .forEach(function(r){
+       var k=(r.warehouse||r.scope||"").toLowerCase().trim();
+       if(k) kpiWhForTgt[k]=r;
+     });
+  function _kpiLookup(name){
+    var k=(name||"").toLowerCase().trim();
+    return kpiWhForTgt[k]||{};
+  }
   var tgtAch=function(a,t){return t>0?Math.round(Number(a||0)/Number(t||1)*100):0;};
-  var tgtRows = TGT.filter(function(r){return !wh||r.warehouse===wh;});
+
+  // Use TGT rows if available; otherwise fall back to KPI warehouse rows
+  var tgtRows = TGT.filter(function(r){
+    var wl=(r.warehouse||"").toLowerCase().trim();
+    return !wh || wl===(wh||"").toLowerCase().trim();
+  });
+  var sourceRows;
+  if(tgtRows.length > 0){
+    sourceRows = tgtRows.map(function(r){ return {_src:"tgt", _r:r, wName:r.warehouse||"?"}; });
+  } else {
+    // Fallback: build from KPI warehouse rows (actuals from KPI, targets from TGT/tgtFromSheet)
+    sourceRows = KPI.filter(function(r){
+      var st=String(r.scope_type||"").toLowerCase();
+      var wl=(r.warehouse||r.scope||"").toLowerCase().trim();
+      return st==="warehouse" && (!wh || wl===(wh||"").toLowerCase().trim());
+    }).map(function(r){ return {_src:"kpi", _r:r, wName:r.warehouse||r.scope||"?"}; });
+  }
+
   html=tblHead(["Warehouse",
     "Target GMV","Actual GMV","GMV Ach%","LMTD GMV",
     "Target Orders","Actual Orders","Ord Ach%","LMTD Orders",
     "Target Active Mx","Actual Active Mx","Mx Ach%",
-    "Target AOV","Actual AOV","AOV Ach%"]);
-  tgtRows.forEach(function(r){
-    var wName=r.warehouse||"?";
-    var mtdR=mtdWhMap[wName]||{};
-    var ap=tgtAch;
-    var gp=ap(r.actual_gmv||0, r.target_gmv||0);
-    var op=ap(r.actual_orders||0, r.target_orders||0);
-    var mp=ap(r.actual_active_mx||0, r.target_active_mx||0);
-    var aoVp=ap(r.actual_aov||0, r.target_aov||0);
+    "Actual AOV","LMTD AOV"]);
+  sourceRows.forEach(function(sr){
+    var wName=sr.wName, r=sr._r;
+    var mtdR=_mtdLookup(wName);
+    var kpiR=_kpiLookup(wName);
+    // Actuals: prefer TGT non-zero, fallback to MTD, then KPI
+    var aGmv = Number(r.actual_gmv||0) || Number(mtdR.mtd_gmv||0) || Number(kpiR.mtd_gmv||kpiR.gmv||0);
+    var aOrd = Number(r.actual_orders||0) || Number(mtdR.mtd_orders||0) || Number(kpiR.mtd_orders||kpiR.orders||0);
+    var aMx  = Number(r.actual_active_mx||0) || Number(mtdR.mtd_merchants||0) || Number(kpiR.mtd_merchants||kpiR.active_merchant||0);
+    var aAov = aOrd>0 ? Math.round(aGmv/aOrd) : (Number(r.actual_aov||0)||Number(kpiR.aov||0));
+    var lmtdAovV = Number(mtdR.lmtd_orders||0)>0
+      ? Math.round(Number(mtdR.lmtd_gmv||0)/Number(mtdR.lmtd_orders||1)) : 0;
+    // Targets: prefer TGT non-zero, fallback to tgtFromSheet
+    var tGmv = Number(r.target_gmv||0) || tgtFromSheet(wName,"target_gmv");
+    var tOrd = Number(r.target_orders||0) || tgtFromSheet(wName,"target_orders");
+    var tMx  = Number(r.target_active_mx||0) || tgtFromSheet(wName,"target_active_mx");
+    var gp=tgtAch(aGmv, tGmv);
+    var op=tgtAch(aOrd, tOrd);
+    var mp=tgtAch(aMx, tMx);
     html+='<tr><td><b>'+wName+'</b></td>'
-      +'<td class="num">'+fmtL(r.target_gmv||0)+'</td>'
-      +'<td class="num"><b>'+fmtL(r.actual_gmv||0)+'</b></td>'
-      +'<td class="num"><b style="color:'+achColor(gp)+'">'+gp+'%</b></td>'
-      +'<td class="num" style="color:#64748b">'+fmtL(mtdR.lmtd_gmv||0)+'</td>'
-      +'<td class="num">'+fmt(r.target_orders||0)+'</td>'
-      +'<td class="num"><b>'+fmt(r.actual_orders||0)+'</b></td>'
-      +'<td class="num"><b style="color:'+achColor(op)+'">'+op+'%</b></td>'
-      +'<td class="num" style="color:#64748b">'+fmt(mtdR.lmtd_orders||0)+'</td>'
-      +'<td class="num">'+fmt(r.target_active_mx||0)+'</td>'
-      +'<td class="num"><b>'+fmt(r.actual_active_mx||0)+'</b></td>'
-      +'<td class="num"><b style="color:'+achColor(mp)+'">'+mp+'%</b></td>'
-      +'<td class="num">'+fmtL(r.target_aov||0)+'</td>'
-      +'<td class="num"><b>'+fmtL(r.actual_aov||0)+'</b></td>'
-      +'<td class="num"><b style="color:'+achColor(aoVp)+'">'+aoVp+'%</b></td>'
+      +'<td class="num">'+fmtL(tGmv)+'</td>'
+      +'<td class="num"><b>'+fmtL(aGmv)+'</b></td>'
+      +'<td class="num"><b style="color:'+achColor(gp)+'">'+gp+'%</b>'+bar(gp,"#0e9f6e")+'</td>'
+      +'<td class="num" style="color:#64748b">'+fmtL(Number(mtdR.lmtd_gmv||0))+'</td>'
+      +'<td class="num">'+fmt(tOrd)+'</td>'
+      +'<td class="num"><b>'+fmt(aOrd)+'</b></td>'
+      +'<td class="num"><b style="color:'+achColor(op)+'">'+op+'%</b>'+bar(op,"#0e9f6e")+'</td>'
+      +'<td class="num" style="color:#64748b">'+fmt(Number(mtdR.lmtd_orders||0))+'</td>'
+      +'<td class="num">'+fmt(tMx)+'</td>'
+      +'<td class="num"><b>'+fmt(aMx)+'</b></td>'
+      +'<td class="num"><b style="color:'+achColor(mp)+'">'+mp+'%</b>'+bar(mp,"#0e9f6e")+'</td>'
+      +'<td class="num"><b>'+fmtL(aAov)+'</b></td>'
+      +'<td class="num" style="color:#64748b">'+fmtL(lmtdAovV)+'</td>'
       +'</tr>';
   });
   html+='</tbody></table>';
