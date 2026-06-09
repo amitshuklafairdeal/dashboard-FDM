@@ -938,23 +938,23 @@ function renderRet(){
   // ── Scorecard row 1: Overall retention ────────────────────────────────────
   document.getElementById("ret-kpis").innerHTML=
     kpiHtml("Active Last Month",   fmt(overall.prev_active_mx||0),
-      "Full previous month"+lmtdLabel,"o")+
+      "Full previous month","o")+
     kpiHtml("Active Current Month",fmt(overall.cur_active_mx||0),
       "Placed ≥1 order"+lmtdLabel,"g")+
     kpiHtml("Retained",            fmt(overall.retained_mx||0),
-      fmtPct(retPctOv)+" retention rate"+lmtdLabel,"g")+
+      fmtPct(retPctOv)+" of LM active","g")+
     kpiHtml("Pending Retention",   fmt(overall.pending_retention_mx||0),
-      "LM active, not yet ordered CM"+lmtdLabel,"r");
+      "LM active, not yet ordered CM","r");
   // ── Scorecard row 2: GSB retention ────────────────────────────────────────
   document.getElementById("ret-kpis2").innerHTML=
     kpiHtml("GSB Last Month",      fmt(overall.gsb_lm_mx||0),
-      "Gold+Silver+Bronze"+lmtdLabel,"p")+
+      "Gold+Silver+Bronze","p")+
     kpiHtml("GSB Retained",        fmt(overall.gsb_retained_mx||0),
-      fmtPct(gsbRetPctOv)+" GSB ret%"+lmtdLabel,"t")+
+      fmtPct(gsbRetPctOv)+" of GSB LM","t")+
     kpiHtml("GSB Pending",         fmt(overall.gsb_pending_mx||0),
-      "GSB LM not yet active CM"+lmtdLabel,"r")+
+      "GSB LM not yet active CM","r")+
     kpiHtml("Non-GSB Retained",    fmt(overall.non_gsb_retained_mx||0),
-      fmtPct(ngRetPctOv)+" non-GSB ret%"+lmtdLabel,"");
+      fmtPct(ngRetPctOv)+" of Non-GSB LM","");
 
   // ── Charts — compute flow stats from MOV ──────────────────────────────────
   var movFilt = MOV.filter(function(r){return !wh||r.warehouse===wh;});
@@ -1028,19 +1028,29 @@ function renderRet(){
       +'<td class="num">'+fmt(ngRet)+'</td>'
       +'</tr>';
   });
-  var tRetPct=tLm>0?Math.round(tRet/tLm*100):0;
-  var tGsbPct=tGsbLm>0?Math.round(tGsbRet/tGsbLm*100):0;
+  // TOTAL row — use de-duplicated overall row (same source as scorecards).
+  // Per-WH sums over-count merchants who order from multiple warehouses.
+  var ovLm    = Number(overall.prev_active_mx||0)       || tLm;
+  var ovCm    = Number(overall.cur_active_mx||0)        || tCm;
+  var ovRet   = Number(overall.retained_mx||0)          || tRet;
+  var ovPend  = Number(overall.pending_retention_mx||0) || tPend;
+  var ovGsbLm = Number(overall.gsb_lm_mx||0)           || tGsbLm;
+  var ovGsbRet= Number(overall.gsb_retained_mx||0)     || tGsbRet;
+  var ovNgLm  = Number(overall.non_gsb_lm_mx||0)       || tNgLm;
+  var ovNgRet = Number(overall.non_gsb_retained_mx||0) || tNgRet;
+  var tRetPct = ovLm>0?Math.round(ovRet/ovLm*100):0;
+  var tGsbPct = ovGsbLm>0?Math.round(ovGsbRet/ovGsbLm*100):0;
   html+='<tr style="background:#f0f9ff;font-weight:700"><td>TOTAL</td>'
-    +'<td class="num">'+fmt(tLm)+'</td>'
-    +'<td class="num"><b style="color:#1a56db">'+fmt(tCm)+'</b></td>'
-    +'<td class="num">'+fmt(tRet)+'</td>'
+    +'<td class="num">'+fmt(ovLm)+'</td>'
+    +'<td class="num"><b style="color:#1a56db">'+fmt(ovCm)+'</b></td>'
+    +'<td class="num">'+fmt(ovRet)+'</td>'
     +'<td class="num"><b style="color:'+retColor(tRetPct)+'">'+fmtPct(tRetPct)+'</b></td>'
-    +'<td class="num" style="color:#e02424">'+fmt(tPend)+'</td>'
-    +'<td class="num"><b style="color:#0e9f6e">'+fmt(tGsbLm)+'</b></td>'
-    +'<td class="num">'+fmt(tGsbRet)+'</td>'
+    +'<td class="num" style="color:#e02424">'+fmt(ovPend)+'</td>'
+    +'<td class="num"><b style="color:#0e9f6e">'+fmt(ovGsbLm)+'</b></td>'
+    +'<td class="num">'+fmt(ovGsbRet)+'</td>'
     +'<td class="num"><b style="color:'+retColor(tGsbPct)+'">'+fmtPct(tGsbPct)+'</b></td>'
-    +'<td class="num">'+fmt(tNgLm)+'</td>'
-    +'<td class="num">'+fmt(tNgRet)+'</td>'
+    +'<td class="num">'+fmt(ovNgLm)+'</td>'
+    +'<td class="num">'+fmt(ovNgRet)+'</td>'
     +'</tr>';
   html+='</tbody></table>';
   document.getElementById("ret-wh-tbl").innerHTML=html;
